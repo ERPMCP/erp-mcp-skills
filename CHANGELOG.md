@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.7 - 2026-07-15
+
+- Replace the loose preview gate with an explicit six-phase state machine: `COLLECTING_OPTIONS`, `READY_FOR_PREVIEW`, `PREVIEW_SHOWN`, `QUERY_AUTHORIZED`, `QUERY_RUNNING`, `QUERY_COMPLETE`.
+- Make option selection and preview display non-querying states. Choosing business type, month, scope, or price method no longer authorizes ERP reads.
+- Require a real `开始查询` event to enter `QUERY_AUTHORIZED`; probing, field inspection, samples, and one-page test reads remain blocked before that.
+- Update tests to prove ERP business calls and raw business JSON writes remain zero after option selection and after preview display.
+
 ## 2.2.6 - 2026-07-15
 
 - Add a local `erp_dashboard_proxy` MCP server so WorkBuddy can open an MCP Apps Widget shell instead of a dead `file:///` page when realtime querying is requested.

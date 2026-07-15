@@ -16,7 +16,7 @@ from datetime import date, timedelta
 
 WIDGET_URI = "ui://erp/dashboard"
 SERVER_NAME = "erp-dashboard-proxy"
-SERVER_VERSION = "2.2.6"
+SERVER_VERSION = "2.2.7"
 
 
 def read_message():
@@ -370,7 +370,7 @@ def handle_call(msg):
         name = params.get("name")
         args = params.get("arguments") or {}
         if name == "showErpDashboard":
-            result(msg, text_result("已准备好 ERP 实时查询入口。", {"phase": "PREVIEW_PENDING"}, attach_widget=True))
+            result(msg, text_result("已准备好 ERP 实时查询入口。", {"phase": "PREVIEW_SHOWN"}, attach_widget=True))
         elif name == "queryErpDashboardData":
             result(msg, query_dashboard(args))
         elif name == "getErpMetricDetails":

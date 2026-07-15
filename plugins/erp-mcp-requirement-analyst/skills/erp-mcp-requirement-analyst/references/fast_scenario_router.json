@@ -1,5 +1,5 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "first_round_policy": {
     "max_local_files": 2,
     "read_full_capability_guide": false,
@@ -22,7 +22,7 @@
       ],
       "template": "house_new_listing_price_fast.json",
       "first_round_action": "render_requirement_wizard_and_wait",
-      "customer_progress": "请先确认查询条件；确认后我才会读取 ERP 数据。",
+      "customer_progress": "请先选择查询条件。我会先生成预览页；只有点击开始查询后才会读取 ERP 数据。",
       "forbidden_before_confirmation": [
         "queryRptData",
         "queryContractFinanceData",
@@ -33,11 +33,11 @@
         "listHotSection"
       ],
       "after_confirmation": [
-        "check_erp_connector",
-        "inspect_live_tools_only_if_needed",
-        "load_selected_scope_before_full_query",
-        "query_real_erp_data",
-        "render_realtime_widget_or_final_report"
+        "mark_options_ready",
+        "render_preview_or_widget_shell",
+        "stop_until_start_query",
+        "after_start_query_check_erp_connector",
+        "after_start_query_query_real_erp_data"
       ]
     }
   ]

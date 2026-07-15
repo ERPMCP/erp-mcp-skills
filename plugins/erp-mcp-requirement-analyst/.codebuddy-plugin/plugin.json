@@ -1,6 +1,6 @@
 {
   "name": "erp-mcp-requirement-analyst",
-  "version": "2.2.6",
+  "version": "2.2.7",
   "description": "ERP MCP需求澄清、真实数据查询、MCP Apps实时看板与交互HTML助手",
   "skills": [
     "./skills/"

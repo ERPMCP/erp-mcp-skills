@@ -80,8 +80,12 @@ def main():
         if any(word in pre.get("customer_progress", "").lower() for word in ("loading", "reading", "schema", "probe", "i'll")):
             raise SystemExit("fast route leaked English/internal progress text")
         after = route_data.get("after_confirmation", [])
-        if "query_real_erp_data" not in after or after.index("query_real_erp_data") < after.index("check_erp_connector"):
-            raise SystemExit("fast route does not defer ERP querying until after connector checks")
+        if "render_preview_or_widget_shell" not in after or "stop_until_start_query" not in after:
+            raise SystemExit("fast route does not force preview before querying")
+        if "after_start_query_query_real_erp_data" not in after:
+            raise SystemExit("fast route does not defer ERP querying until start query")
+        if after.index("after_start_query_query_real_erp_data") < after.index("stop_until_start_query"):
+            raise SystemExit("fast route queries before the start-query stop point")
 
         wizard = td / "wizard.html"
         run([ROOT / "scripts" / "render_requirement_wizard.py", "--config", route_wizard_config, "--out", wizard])
@@ -90,14 +94,28 @@ def main():
         state = td / "state.json"
         run([ROOT / "scripts" / "query_gate.py", "init", "--state", state, "--scenario", "house_new_listing_price", "--query", "查询上月新上房源数量和挂牌均价"])
         gate_data = json.loads(state.read_text(encoding="utf-8"))
-        if gate_data.get("phase") != "PREVIEW_PENDING" or gate_data.get("business_tool_calls"):
-            raise SystemExit("query gate did not start in PREVIEW_PENDING")
+        if gate_data.get("phase") != "COLLECTING_OPTIONS" or gate_data.get("business_tool_calls"):
+            raise SystemExit("query gate did not start in COLLECTING_OPTIONS")
         blocked_tool = run([ROOT / "scripts" / "query_gate.py", "guard", "--state", state, "--tool", "queryRptData"], expect_ok=False)
-        if "客户尚未确认预览" not in blocked_tool.stdout:
+        if "客户尚未点击开始查询" not in blocked_tool.stdout:
             raise SystemExit("query gate did not block business tool before confirmation")
         blocked_json = run([ROOT / "scripts" / "query_gate.py", "write-json", "--state", state, "--path", str(td / "prices.json"), "--kind", "business"], expect_ok=False)
-        if "客户尚未确认预览" not in blocked_json.stdout:
+        if "客户尚未点击开始查询" not in blocked_json.stdout:
             raise SystemExit("query gate did not block business JSON before confirmation")
+        run([ROOT / "scripts" / "query_gate.py", "choose", "--state", state, "--key", "business_type", "--value", "sell"])
+        gate_data = json.loads(state.read_text(encoding="utf-8"))
+        if gate_data.get("phase") != "COLLECTING_OPTIONS" or gate_data.get("query_authorized"):
+            raise SystemExit("choosing business type must not authorize query")
+        blocked_after_choice = run([ROOT / "scripts" / "query_gate.py", "guard", "--state", state, "--tool", "listHouseByCondition"], expect_ok=False)
+        if "客户尚未点击开始查询" not in blocked_after_choice.stdout:
+            raise SystemExit("query gate allowed ERP probing after option selection")
+        run([ROOT / "scripts" / "query_gate.py", "ready", "--state", state])
+        gate_data = json.loads(state.read_text(encoding="utf-8"))
+        if gate_data.get("phase") != "READY_FOR_PREVIEW":
+            raise SystemExit("query gate did not enter READY_FOR_PREVIEW")
+        blocked_ready = run([ROOT / "scripts" / "query_gate.py", "guard", "--state", state, "--tool", "queryRptData"], expect_ok=False)
+        if "客户尚未点击开始查询" not in blocked_ready.stdout:
+            raise SystemExit("query gate allowed ERP probing while ready for preview")
         widget_html = td / "widget.html"
         static_html = td / "static.html"
         run([ROOT / "scripts" / "render_widget_shell.py", "--config", route_wizard_config, "--out", widget_html, "--mode", "widget", "--state-id", str(state)])
@@ -108,11 +126,18 @@ def main():
             raise SystemExit("widget shell is not a realtime query entrance")
         if "确认后查询" not in static_text or "callServerTool" in static_text or "queryErpDashboardData" in static_text:
             raise SystemExit("static shell pretends to be realtime")
-        run([ROOT / "scripts" / "query_gate.py", "confirm", "--state", state, "--source", "widget"])
+        run([ROOT / "scripts" / "query_gate.py", "preview-shown", "--state", state, "--source", "widget"])
+        gate_data = json.loads(state.read_text(encoding="utf-8"))
+        if gate_data.get("phase") != "PREVIEW_SHOWN" or gate_data.get("query_authorized"):
+            raise SystemExit("preview display must not authorize query")
+        blocked_preview = run([ROOT / "scripts" / "query_gate.py", "guard", "--state", state, "--tool", "queryRptData"], expect_ok=False)
+        if "客户尚未点击开始查询" not in blocked_preview.stdout:
+            raise SystemExit("query gate allowed ERP probing after preview display")
+        run([ROOT / "scripts" / "query_gate.py", "authorize", "--state", state, "--source", "widget"])
         run([ROOT / "scripts" / "query_gate.py", "guard", "--state", state, "--tool", "queryErpDashboardData"])
         gate_data = json.loads(state.read_text(encoding="utf-8"))
         if gate_data.get("phase") != "QUERY_RUNNING" or not gate_data.get("business_tool_calls"):
-            raise SystemExit("query gate did not allow business query after confirmation")
+            raise SystemExit("query gate did not allow business query after explicit start query")
         run([ROOT / "scripts" / "query_gate.py", "write-json", "--state", state, "--path", str(td / "counts_all.json"), "--kind", "business"])
         gate_data = json.loads(state.read_text(encoding="utf-8"))
         if not gate_data.get("business_json_writes"):

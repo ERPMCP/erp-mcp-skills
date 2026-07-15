@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.7 - 2026-07-15
+
+- Replace the old confirmation gate with the explicit customer flow: `COLLECTING_OPTIONS -> READY_FOR_PREVIEW -> PREVIEW_SHOWN -> QUERY_AUTHORIZED -> QUERY_RUNNING -> QUERY_COMPLETE`.
+- Treat customer option replies as option collection only, not query authorization.
+- Block all ERP probes, samples, one-page reads, and raw business JSON writes until a real `开始查询` event authorizes the query.
+- Add self-tests for option selection and preview display still having zero ERP business tool calls.
+
 ## 2.2.6 - 2026-07-15
 
 - Add bundled local `erp_dashboard_proxy` MCP server for WorkBuddy MCP Apps Widget shells when this repository does not contain the remote ERP MCP server source.

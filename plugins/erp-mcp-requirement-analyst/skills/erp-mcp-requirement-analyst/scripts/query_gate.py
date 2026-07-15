@@ -2,7 +2,7 @@
 """Deterministic guard for the preview-first ERP workflow.
 
 This script does not call ERP. It records the report phase and blocks accidental
-business-data reads or raw JSON writes before the customer confirms the preview.
+business-data reads or raw JSON writes before the customer clicks start query.
 """
 
 import argparse
@@ -11,8 +11,10 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-PHASE_PREVIEW = "PREVIEW_PENDING"
-PHASE_CONFIRMED = "QUERY_CONFIRMED"
+PHASE_COLLECTING = "COLLECTING_OPTIONS"
+PHASE_READY = "READY_FOR_PREVIEW"
+PHASE_PREVIEW = "PREVIEW_SHOWN"
+PHASE_AUTHORIZED = "QUERY_AUTHORIZED"
 PHASE_RUNNING = "QUERY_RUNNING"
 PHASE_COMPLETE = "QUERY_COMPLETE"
 PHASE_FAILED = "QUERY_FAILED"
@@ -41,7 +43,7 @@ BUSINESS_JSON_PATTERNS = [
     "*_business.json",
 ]
 
-BLOCK_MESSAGE = "客户尚未确认预览，禁止读取ERP数据。"
+BLOCK_MESSAGE = "客户尚未点击开始查询，禁止读取ERP业务数据。"
 
 
 def now():
@@ -50,16 +52,19 @@ def now():
 
 def default_state(scenario="", query=""):
     return {
-        "phase": PHASE_PREVIEW,
-        "confirmed": False,
+        "phase": PHASE_COLLECTING,
+        "options_complete": False,
+        "preview_shown": False,
+        "query_authorized": False,
         "query_started": False,
         "scenario": scenario,
         "query": query,
-        "confirmation_source": None,
+        "authorization_source": None,
+        "selected_options": {},
         "business_tool_calls": [],
         "business_json_writes": [],
         "preview_writes": [],
-        "events": [{"at": now(), "event": "init", "phase": PHASE_PREVIEW}],
+        "events": [{"at": now(), "event": "init", "phase": PHASE_COLLECTING}],
     }
 
 
@@ -77,7 +82,7 @@ def write_state(path, state):
 
 
 def can_read_business(state):
-    return state.get("phase") in {PHASE_CONFIRMED, PHASE_RUNNING}
+    return state.get("phase") in {PHASE_AUTHORIZED, PHASE_RUNNING}
 
 
 def is_business_json(path, kind):
@@ -97,14 +102,42 @@ def cmd_init(args):
     print_json(state)
 
 
-def cmd_confirm(args):
+def cmd_choose(args):
+    state = read_state(args.state)
+    state.setdefault("selected_options", {})[args.key] = args.value
+    state.setdefault("events", []).append({"at": now(), "event": "choose_option", "key": args.key, "phase": state.get("phase")})
+    write_state(args.state, state)
+    print_json(state)
+
+
+def cmd_ready(args):
+    state = read_state(args.state)
+    state["phase"] = PHASE_READY
+    state["options_complete"] = True
+    state.setdefault("events", []).append({"at": now(), "event": "ready_for_preview", "phase": PHASE_READY})
+    write_state(args.state, state)
+    print_json(state)
+
+
+def cmd_preview_shown(args):
     state = read_state(args.state)
     if state.get("phase") == PHASE_COMPLETE:
         raise SystemExit("query is already complete")
-    state["phase"] = PHASE_CONFIRMED
-    state["confirmed"] = True
-    state["confirmation_source"] = args.source
-    state.setdefault("events", []).append({"at": now(), "event": "confirm", "source": args.source, "phase": PHASE_CONFIRMED})
+    state["phase"] = PHASE_PREVIEW
+    state["preview_shown"] = True
+    state.setdefault("events", []).append({"at": now(), "event": "preview_shown", "source": args.source, "phase": PHASE_PREVIEW})
+    write_state(args.state, state)
+    print_json(state)
+
+
+def cmd_authorize(args):
+    state = read_state(args.state)
+    if state.get("phase") not in {PHASE_PREVIEW, PHASE_AUTHORIZED, PHASE_RUNNING}:
+        raise SystemExit("query can only be authorized after the preview is shown")
+    state["phase"] = PHASE_AUTHORIZED
+    state["query_authorized"] = True
+    state["authorization_source"] = args.source
+    state.setdefault("events", []).append({"at": now(), "event": "query_authorized", "source": args.source, "phase": PHASE_AUTHORIZED})
     write_state(args.state, state)
     print_json(state)
 
@@ -173,10 +206,25 @@ def main():
     p.add_argument("--query", default="")
     p.set_defaults(func=cmd_init)
 
-    p = sub.add_parser("confirm")
+    p = sub.add_parser("choose")
+    p.add_argument("--state", required=True)
+    p.add_argument("--key", required=True)
+    p.add_argument("--value", required=True)
+    p.set_defaults(func=cmd_choose)
+
+    p = sub.add_parser("ready")
+    p.add_argument("--state", required=True)
+    p.set_defaults(func=cmd_ready)
+
+    p = sub.add_parser("preview-shown")
+    p.add_argument("--state", required=True)
+    p.add_argument("--source", choices=["widget", "native_card", "chat", "html"], required=True)
+    p.set_defaults(func=cmd_preview_shown)
+
+    p = sub.add_parser("authorize")
     p.add_argument("--state", required=True)
     p.add_argument("--source", choices=["widget", "native_card", "chat"], required=True)
-    p.set_defaults(func=cmd_confirm)
+    p.set_defaults(func=cmd_authorize)
 
     p = sub.add_parser("guard")
     p.add_argument("--state", required=True)
