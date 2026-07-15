@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.4.0 - 2026-07-15
+
+- Add a WorkBuddy `allowed-tools` hard allowlist so the common first-question path can only show the native question control or open the bundled Widget; direct ERP probes, file reads, shell commands, and business-data writes are unavailable to the Skill.
+- Delete the old new-listing case, fast router, state gate, and requirement-wizard files that encouraged WorkBuddy to read references, probe live fields, or continue after one option answer.
+- Embed the small first-question decision directly in `SKILL.md`, mark it as `快速模式 2.4`, and require an immediate stop after any question.
+- Preserve unsupported but plausible definitions as explicitly unavailable choices instead of silently substituting a nearby supported field.
+- Replace unexplained hierarchy terms with concrete customer wording and examples for company departments/people and property location.
+- Add a click-only listing-average-price tool. Initial results show the count first; price scans use running totals only after the page button is clicked and never persist one row per property.
+- Require complete ERP option sets to render as dropdowns (searchable when large and dependent when hierarchical) instead of plain text search boxes, and add lazy region -> business district -> community options.
+- Fix Widget asset injection so bundled SDK text cannot be mistaken for a template marker and corrupt the page JavaScript.
+- Repair broken Chinese encoding in the Skill and Widget source, and add regressions for the tool allowlist, stale files, click-only calculations, app-only tools, and plain-language labels.
+
 ## 2.3.0 - 2026-07-15
 
 - Replace the empty-preview-first flow with definition confirmation followed by the fastest verified summary and the live Widget in the same result.

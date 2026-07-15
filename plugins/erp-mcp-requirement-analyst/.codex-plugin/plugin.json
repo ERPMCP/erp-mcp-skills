@@ -1,7 +1,7 @@
 {
   "name": "erp-mcp-requirement-analyst",
-  "version": "2.3.0",
-  "description": "ERP MCP quick summaries, lazy details, live Widget filters, and requirement clarification for ERP customers.",
+  "version": "2.4.0",
+  "description": "ERP MCP zero-read first questions, quick summaries, click-only calculations, lazy details, and live Widget filters.",
   "author": {
     "name": "ERP Skill Team"
   },
@@ -17,8 +17,8 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "ERP MCP 快速数据助手",
-    "shortDescription": "先出可信汇总，再按需读取明细",
-    "longDescription": "Clarifies only result-changing definitions, returns the fastest verified ERP summary, opens a real MCP Apps Widget for in-page filters, and retrieves bounded details only after an explicit metric click.",
+    "shortDescription": "先问关键定义，再出数字，点击后才读明细",
+    "longDescription": "Asks only unresolved result-changing definitions without reading files or probing ERP, returns the fastest verified summary, opens a real MCP Apps Widget for plainly explained filters, and retrieves calculations or bounded details only after explicit page actions.",
     "developerName": "ERP Skill Team",
     "category": "Productivity",
     "capabilities": [
@@ -27,8 +27,8 @@
       "Reporting"
     ],
     "defaultPrompt": [
-      "先确认会改变数字的统计方式，再尽快返回可信汇总。",
-      "用MCP Apps实时看板在页面内更换筛选条件。",
+      "先确认会改变数字的统计方式；明确的需求不重复提问，接口不支持的合理选项也不能静默替换。",
+      "用MCP Apps实时看板在页面内按公司部门和人员，或按房源所在位置更换筛选条件。",
       "只有用户点击蓝色数字时才分页读取明细。"
     ],
     "brandColor": "#007AFF"

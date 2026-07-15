@@ -21,7 +21,12 @@ const [template, css] = await Promise.all([
   readFile(resolve(root, "src/styles.css"), "utf8"),
 ]);
 const js = result.outputFiles[0].text.replaceAll("</script", "<\\/script");
-const html = template.replace("/*__APP_CSS__*/", css).replace("/*__APP_JS__*/", js);
+// Replace both markers in one pass over the untouched template. A second
+// replace can accidentally match marker-like text inside the bundled SDK.
+const html = template.replace(
+  /\/\*__(APP_CSS|APP_JS)__\*\//g,
+  (_, kind) => (kind === "APP_CSS" ? css : js),
+);
 await mkdir(resolve(root, "dist"), { recursive: true });
 await writeFile(resolve(root, "dist/index.html"), html, "utf8");
 console.log("dist/index.html");

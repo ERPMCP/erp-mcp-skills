@@ -18,9 +18,9 @@
       <span id="connectionBadge" class="badge pending">正在连接</span>
     </header>
 
-    <nav class="view-switch" aria-label="统计方式">
-      <button id="orgView" class="view-button active" type="button">按月份和组织看</button>
-      <button id="locationView" class="view-button" type="button">按当前位置看</button>
+    <nav class="view-switch" aria-label="选择查看方式">
+      <button id="orgView" class="view-button active" type="button"><strong>按公司部门和人员看</strong><small>全公司、部门、门店或员工</small></button>
+      <button id="locationView" class="view-button" type="button"><strong>按房源所在位置看</strong><small>区域、商圈或小区</small></button>
     </nav>
 
     <section class="filter-band" aria-label="查询条件">
@@ -32,9 +32,9 @@
       </div>
       <div id="locationFilters" class="filter-grid hidden">
         <label class="field">业务类型<select id="locationBusinessType"><option value="sell">买卖房源</option><option value="rent">租赁房源</option></select></label>
-        <label class="field">区域<input id="districtName" placeholder="输入区域名称"></label>
-        <label class="field">商圈<input id="zoneName" placeholder="输入商圈名称"></label>
-        <label class="field">小区<input id="sectionLike" placeholder="输入小区关键词"></label>
+        <label class="field">区域<select id="districtName"><option value="">切换到此处后加载</option></select></label>
+        <label class="field">商圈<select id="zoneName" disabled><option value="">请先选择区域</option></select></label>
+        <label class="field">小区<select id="sectionLike" disabled><option value="">请先选择商圈</option></select></label>
       </div>
       <div class="filter-actions">
         <button id="refreshSummary" class="primary" type="button">刷新数字</button>
@@ -46,7 +46,7 @@
       <article class="metric-card" aria-live="polite">
         <div class="metric-topline">
           <span id="metricLabel">新上房源数量</span>
-          <span id="metricStatus" class="small-status">等候结果</span>
+          <span id="metricStatus" class="small-status">等待结果</span>
         </div>
         <button id="metricValue" class="metric-value" type="button">暂无可验证数据</button>
         <p id="metricRule" class="metric-rule">数字返回后，这里会说明它是怎么统计的。</p>
@@ -61,6 +61,18 @@
           <li><span>3</span>点击蓝色数字才读取明细</li>
         </ol>
       </aside>
+    </section>
+
+    <section id="secondaryMetric" class="secondary-metric hidden" aria-live="polite">
+      <div>
+        <p class="eyebrow">按需计算</p>
+        <h2 id="secondaryLabel">当前新上房源挂牌均价</h2>
+        <p id="secondaryRule">先显示新增数量；只有点击计算后才读取价格和面积字段。</p>
+      </div>
+      <div class="secondary-result">
+        <strong id="secondaryValue">点击后计算</strong>
+        <button id="calculatePrice" class="secondary" type="button">计算挂牌均价</button>
+      </div>
     </section>
 
     <section id="detailSection" class="detail-section hidden" aria-live="polite">

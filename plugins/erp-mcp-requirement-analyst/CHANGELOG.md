@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.4.0 - 2026-07-15
+
+- Restrict the Skill to `AskUserQuestion` and the bundled `showErpDashboard` entry tool so WorkBuddy cannot repeat the direct-probe and `data.py` behavior shown in customer testing.
+- Ask only unresolved result-changing definitions, but keep unsupported plausible choices visible and labeled instead of silently changing the requested calculation.
+- Explain filters as company departments/people or property location with concrete examples, including `不需要额外筛选` and native custom input.
+- Return the initial count before any detail pull, and calculate listing average price only after a real Widget button click.
+- Keep derived calculations in memory as running totals and expose page-only refresh, price, and detail tools through MCP Apps visibility metadata.
+- Populate enumerable departments, people, regions, business districts, and communities as dropdowns; large lists may be searchable but cannot be replaced by a plain search field.
+- Fix single-pass Widget asset injection and add a regression that rejects HTML recursively injected into the JavaScript bundle.
+
 ## 2.3.0 - 2026-07-15
 
 - Return the fastest verified summary immediately after metric-definition confirmation, then attach the live MCP Apps Widget without waiting for full records.

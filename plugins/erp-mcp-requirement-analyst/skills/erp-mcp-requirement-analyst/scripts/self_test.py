@@ -73,85 +73,45 @@ def load_proxy_module():
     return module
 
 
-def assert_route(temp_dir, query, scenario, template):
-    route_path = temp_dir / f"{scenario}.json"
-    wizard_path = temp_dir / f"{scenario}-wizard.json"
-    run(
-        [
-            ROOT / "scripts" / "fast_route.py",
-            "--query",
-            query,
-            "--out",
-            route_path,
-            "--wizard-config-out",
-            wizard_path,
-        ]
-    )
-    route = json.loads(route_path.read_text(encoding="utf-8"))
-    if route.get("scenario_id") != scenario:
-        raise SystemExit(f"wrong route for {query}: {route.get('scenario_id')}")
-    if route.get("read_files") != [
-        "references/fast_scenario_router.json",
-        f"references/{template}",
-    ]:
-        raise SystemExit("fast route read more than the router and one small template")
-    pre = route.get("pre_confirmation", {})
-    if pre.get("call_erp_business_tools") or pre.get("read_full_capability_guide") or pre.get("inspect_live_schema"):
-        raise SystemExit("fast route enabled ERP or broad reference reads before confirmation")
-    if pre.get("action") != "render_requirement_wizard_and_wait" or not pre.get("halt_after_render"):
-        raise SystemExit("fast route did not stop for definition confirmation")
-    after = route.get("after_confirmation", [])
-    if "call_showErpDashboard_for_summary" not in after or "do_not_fetch_details_until_metric_click" not in after:
-        raise SystemExit("fast route does not enforce quick summary followed by lazy detail")
-    return wizard_path
+def test_skill_contract():
+    skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    allow_line = next((line for line in skill.splitlines() if line.startswith("allowed-tools:")), "")
+    expected = "allowed-tools: AskUserQuestion, mcp__erp_dashboard_proxy__showErpDashboard"
+    if allow_line != expected:
+        raise SystemExit(f"first-turn tool allowlist changed: {allow_line}")
+    for forbidden in ("Read", "Write", "Bash", "mcp__erp__"):
+        if forbidden in allow_line:
+            raise SystemExit(f"forbidden first-turn tool leaked into allowlist: {forbidden}")
+    for required in (
+        "快速模式 2.4",
+        "After asking any question, stop the turn",
+        "Never translate an unavailable request into a nearby available field",
+        "按公司部门和人员看",
+        "按房源所在位置看",
+        "never create `data.py`",
+    ):
+        if required not in skill:
+            raise SystemExit(f"skill contract missing: {required}")
+    if "鏂颁" in skill or "�" in skill:
+        raise SystemExit("SKILL.md contains broken Chinese encoding")
 
+    removed = [
+        ROOT / "references" / "house_new_listing_price_case.md",
+        ROOT / "references" / "fast_scenario_router.json",
+        ROOT / "references" / "house_new_listing_count_fast.json",
+        ROOT / "references" / "house_new_listing_price_fast.json",
+        ROOT / "scripts" / "fast_route.py",
+        ROOT / "scripts" / "query_gate.py",
+        ROOT / "assets" / "requirement_wizard_template.html",
+        ROOT / "scripts" / "render_requirement_wizard.py",
+    ]
+    existing = [str(path.relative_to(ROOT)) for path in removed if path.exists()]
+    if existing:
+        raise SystemExit(f"obsolete slow-path files still exist: {existing}")
 
-def test_query_gate(temp_dir):
-    gate = ROOT / "scripts" / "query_gate.py"
-    state = temp_dir / "state.json"
-    run([gate, "init", "--state", state, "--scenario", "house_new_listing_count", "--query", "查询上月新上房源数量"])
-    data = json.loads(state.read_text(encoding="utf-8"))
-    if data.get("phase") != "COLLECTING_OPTIONS":
-        raise SystemExit("gate did not start in COLLECTING_OPTIONS")
-
-    blocked = run([gate, "guard", "--state", state, "--tool", "queryRptData"], expect_ok=False)
-    if "尚未确认统计定义" not in blocked.stdout:
-        raise SystemExit("summary was not blocked before definition confirmation")
-    blocked_detail = run([gate, "guard", "--state", state, "--tool", "listHouseByCondition"], expect_ok=False)
-    if "尚未点击蓝色数字" not in blocked_detail.stdout:
-        raise SystemExit("detail was not blocked before definition confirmation")
-
-    run([gate, "choose", "--state", state, "--key", "business_type", "--value", "sell"])
-    if json.loads(state.read_text(encoding="utf-8")).get("phase") != "COLLECTING_OPTIONS":
-        raise SystemExit("choosing an option authorized a query")
-    run([gate, "confirm-definition", "--state", state, "--source", "widget"])
-    if json.loads(state.read_text(encoding="utf-8")).get("phase") != "READY_FOR_SUMMARY":
-        raise SystemExit("definition confirmation did not enter READY_FOR_SUMMARY")
-
-    run([gate, "guard", "--state", state, "--tool", "queryRptData"])
-    run([gate, "guard", "--state", state, "--tool", "calculateErpSummaryMetric"])
-    run([gate, "write-json", "--state", state, "--path", temp_dir / "summary_metric.json", "--kind", "summary"])
-    blocked_during_summary = run([gate, "guard", "--state", state, "--tool", "listHouseByCondition"], expect_ok=False)
-    if "尚未点击蓝色数字" not in blocked_during_summary.stdout:
-        raise SystemExit("a derived summary accidentally authorized detail reads")
-    run([gate, "summary-ready", "--state", state])
-    run([gate, "guard", "--state", state, "--tool", "getErpDashboardFilterOptions"])
-    run([gate, "guard", "--state", state, "--tool", "queryErpDashboardSummary"])
-    run([gate, "summary-ready", "--state", state])
-
-    blocked_json = run(
-        [gate, "write-json", "--state", state, "--path", temp_dir / "houses_1.json", "--kind", "detail"],
-        expect_ok=False,
-    )
-    if "尚未点击蓝色数字" not in blocked_json.stdout:
-        raise SystemExit("detail JSON was not blocked before a metric click")
-    run([gate, "authorize-detail", "--state", state, "--source", "metric_click", "--metric-id", "currentNewListingCount"])
-    run([gate, "guard", "--state", state, "--tool", "getErpMetricDetails"])
-    run([gate, "write-json", "--state", state, "--path", temp_dir / "houses_1.json", "--kind", "detail"])
-    run([gate, "detail-ready", "--state", state])
-    final = json.loads(state.read_text(encoding="utf-8"))
-    if final.get("phase") != "DETAIL_READY" or len(final.get("detail_tool_calls", [])) != 1:
-        raise SystemExit("detail click flow did not finish correctly")
+    agent_text = (ROOT / "agents" / "openai.yaml").read_text(encoding="utf-8")
+    if 'value: "erp"' in agent_text:
+        raise SystemExit("agent metadata still asks WorkBuddy to load the direct ERP server")
 
 
 def test_proxy_logic():
@@ -170,13 +130,23 @@ def test_proxy_logic():
         }
 
     proxy.call_upstream_tool = fake_monthly
-    summary = proxy.monthly_summary({"month": "上月", "businessType": "sell"})
+    summary = proxy.monthly_summary(
+        {
+            "month": "上月",
+            "businessType": "sell",
+            "scenario": "house_new_listing_price",
+            "includeReferencePrice": True,
+            "priceMethod": "equal_weight",
+        }
+    )
     if [name for name, _ in calls] != ["queryRptData"]:
-        raise SystemExit("direct aggregate path called more than the aggregate tool")
+        raise SystemExit("initial result used anything other than the aggregate path")
     if summary["metrics"]["primary"]["value"] != 200 or summary["technical"]["detailRowsFetched"] != 0:
-        raise SystemExit("direct aggregate path did not return 200 without detail rows")
+        raise SystemExit("aggregate path did not return 200 without display details")
     if summary["metrics"]["primary"]["drilldown"]["available"]:
         raise SystemExit("monthly aggregate was falsely marked drillable")
+    if summary["secondaryMetric"]["status"] != "waiting_for_user":
+        raise SystemExit("price calculation started before the page button click")
     if summary["filterOptions"]["departments"] != ["一店", "二店"]:
         raise SystemExit("aggregate rows did not provide compact filter options")
 
@@ -187,15 +157,87 @@ def test_proxy_logic():
         return {"structuredContent": {"data": {"total": 40, "records": [{"houseNo": "H-1"}]}}}
 
     proxy.call_upstream_tool = fake_current
-    current = proxy.current_listing_summary({"metricId": "currentNewListingCount", "businessType": "sell", "zoneName": "中心商圈"})
+    current = proxy.current_listing_summary(
+        {
+            "metricId": "currentNewListingCount",
+            "businessType": "sell",
+            "zoneName": "中心商圈",
+            "includeReferencePrice": True,
+        }
+    )
     if calls[0][0] != "listHouseByCondition" or calls[0][1].get("size") != 1:
         raise SystemExit("location summary did not request only the pagination total")
     if current["metrics"]["primary"]["value"] != 40 or current["technical"]["detailRowsFetched"] != 0:
         raise SystemExit("location summary did not keep detail rows lazy")
-    if not current["metrics"]["primary"]["drilldown"]["available"]:
-        raise SystemExit("current listing total should be drillable")
+    if current["secondaryMetric"]["status"] != "waiting_for_user":
+        raise SystemExit("location filter started price calculation without a click")
 
     calls.clear()
+    blocked_price = proxy.listing_price_summary({"businessType": "sell"})
+    if calls or not blocked_price.get("isError"):
+        raise SystemExit("price calculation ran without the calculate button action")
+
+    def fake_price(name, arguments, timeout=30):
+        calls.append((name, arguments))
+        return {
+            "structuredContent": {
+                "data": {
+                    "total": 2,
+                    "records": [
+                        {"unitPrice": 10000, "area": 100},
+                        {"unitPrice": 20000, "area": 200},
+                    ],
+                }
+            }
+        }
+
+    proxy.call_upstream_tool = fake_price
+    equal = proxy.listing_price_summary(
+        {"businessType": "sell", "priceMethod": "equal_weight", "userAction": "calculate_price"}
+    )["structuredContent"]["secondaryMetric"]
+    if equal["value"] != 15000 or equal["technical"]["detailRowsFetchedForDisplay"] != 0:
+        raise SystemExit("equal-weight price calculation is wrong or exposed detail rows")
+    weighted = proxy.listing_price_summary(
+        {"businessType": "sell", "priceMethod": "area_weighted", "userAction": "calculate_price"}
+    )["structuredContent"]["secondaryMetric"]
+    if round(weighted["value"], 2) != 16666.67:
+        raise SystemExit("area-weighted price calculation is wrong")
+
+    source = (PLUGIN_ROOT / "mcp_servers" / "erp_dashboard_proxy.py").read_text(encoding="utf-8")
+    if "unit_prices = []" in source:
+        raise SystemExit("price calculation still retains one value per house instead of running totals")
+
+    calls.clear()
+
+    def fake_locations(name, arguments, timeout=30):
+        calls.append((name, arguments))
+        return {
+            "structuredContent": {
+                "data": {
+                    "total": 3,
+                    "records": [
+                        {"districtName": "东区", "zoneName": "中心商圈", "sectionName": "甲小区"},
+                        {"districtName": "东区", "zoneName": "中心商圈", "sectionName": "乙小区"},
+                        {"districtName": "西区", "zoneName": "新城商圈", "sectionName": "丙小区"},
+                    ],
+                }
+            }
+        }
+
+    proxy.call_upstream_tool = fake_locations
+    blocked_options = proxy.location_filter_options({"businessType": "sell"})
+    if calls or not blocked_options.get("isError"):
+        raise SystemExit("location dropdown options loaded before the customer opened that view")
+    options = proxy.location_filter_options(
+        {"businessType": "sell", "userAction": "load_filter_options"}
+    )["structuredContent"]
+    if not options["filterOptions"]["complete"] or len(options["filterOptions"]["locations"]) != 3:
+        raise SystemExit("location fields were not converted into complete dropdown options")
+    if options["technical"]["detailRowsFetchedForDisplay"] != 0:
+        raise SystemExit("location option loading exposed property detail rows")
+
+    calls.clear()
+    proxy.call_upstream_tool = fake_current
     no_click = proxy.metric_details({"metricId": "currentNewListingCount"})
     if calls or not no_click.get("isError"):
         raise SystemExit("detail tool ran without a metric click")
@@ -223,23 +265,56 @@ def test_proxy_protocol():
         ],
     )
     names = {tool["name"] for tool in replies[1]["result"]["tools"]}
-    expected = {"showErpDashboard", "queryErpDashboardSummary", "getErpDashboardFilterOptions", "getErpMetricDetails"}
+    expected = {
+        "showErpDashboard",
+        "queryErpDashboardSummary",
+        "getErpDashboardFilterOptions",
+        "queryErpDashboardSecondaryMetric",
+        "getErpMetricDetails",
+    }
     if expected - names:
         raise SystemExit(f"proxy MCP tools missing: {expected - names}")
+    by_name = {tool["name"]: tool for tool in replies[1]["result"]["tools"]}
+    if by_name["showErpDashboard"].get("_meta", {}).get("ui", {}).get("visibility") != ["model"]:
+        raise SystemExit("initial dashboard tool is not model-visible")
+    for name in expected - {"showErpDashboard"}:
+        if by_name[name].get("_meta", {}).get("ui", {}).get("visibility") != ["app"]:
+            raise SystemExit(f"page-only tool leaked to the model: {name}")
+
     resource = replies[2]["result"]["contents"][0]
     html = resource.get("text", "")
     if resource.get("mimeType") != "text/html;profile=mcp-app":
         raise SystemExit("Widget resource has the wrong MCP Apps MIME type")
-    if "callServerTool" not in html or "queryErpDashboardSummary" not in html or "getErpMetricDetails" not in html:
-        raise SystemExit("built Widget does not contain live summary and detail calls")
+    for required in (
+        "callServerTool",
+        "queryErpDashboardSummary",
+        "queryErpDashboardSecondaryMetric",
+        "getErpMetricDetails",
+        "按公司部门和人员看",
+        "按房源所在位置看",
+        "getErpDashboardFilterOptions",
+    ):
+        if required not in html:
+            raise SystemExit(f"built Widget is stale or incomplete: {required}")
+    script_start = html.find("<script>")
+    script_end = html.rfind("</script>")
+    if script_start < 0 or script_end <= script_start:
+        raise SystemExit("built Widget does not contain one complete inline script")
+    bundled_script = html[script_start + len("<script>") : script_end]
+    if "<!doctype html>" in bundled_script.lower() or "/*__APP_JS__*/" in bundled_script:
+        raise SystemExit("Widget template was injected into its own JavaScript bundle")
 
     source = (PLUGIN_ROOT / "mcp_servers" / "widget" / "src" / "main.js").read_text(encoding="utf-8")
     for required in ("new App", "app.ontoolinput", "app.ontoolresult", "app.connect()"):
         if required not in source:
             raise SystemExit(f"official MCP Apps lifecycle missing: {required}")
-    for forbidden in ("window.app", "window.openai", "queryErpDashboardData"):
+    for forbidden in ("window.app", "window.openai", "queryErpDashboardData", "鏂颁"):
         if forbidden in source:
-            raise SystemExit(f"legacy Widget bridge remains: {forbidden}")
+            raise SystemExit(f"legacy or broken Widget content remains: {forbidden}")
+    template = (PLUGIN_ROOT / "mcp_servers" / "widget" / "src" / "index.html").read_text(encoding="utf-8")
+    for field in ("deptName", "userName", "districtName", "zoneName", "sectionLike"):
+        if f'<select id="{field}"' not in template or f'<input id="{field}"' in template:
+            raise SystemExit(f"enumerable ERP filter is not a dropdown: {field}")
 
 
 def test_static_report(temp_dir):
@@ -281,32 +356,17 @@ def test_static_report(temp_dir):
 
 
 def main():
+    test_skill_contract()
+    test_proxy_logic()
+    test_proxy_protocol()
     with tempfile.TemporaryDirectory() as directory:
         temp_dir = Path(directory)
-        count_wizard = assert_route(
-            temp_dir,
-            "查询上月新上房源数量",
-            "house_new_listing_count",
-            "house_new_listing_count_fast.json",
-        )
-        assert_route(
-            temp_dir,
-            "查询上月新上房源数量和挂牌均价",
-            "house_new_listing_price",
-            "house_new_listing_price_fast.json",
-        )
-        wizard = temp_dir / "wizard.html"
-        run([ROOT / "scripts" / "render_requirement_wizard.py", "--config", count_wizard, "--out", wizard])
-        run([ROOT / "scripts" / "validate_requirement_wizard.py", wizard])
-        test_query_gate(temp_dir)
-        test_proxy_logic()
-        test_proxy_protocol()
         test_static_report(temp_dir)
         run([ROOT / "scripts" / "lookup_field.py", "合同编号", "--limit", "1"])
         house = run([ROOT / "scripts" / "recommend_export.py", "查询上月新上房源数量和挂牌均价"])
         if "请导出房源表" in house.stdout or "需要补充：房源" in house.stdout or "房源明细导出" in house.stdout:
             raise SystemExit("house export recommendation leaked")
-    print("SELF_TEST_OK_V3")
+    print("SELF_TEST_OK_V4")
 
 
 if __name__ == "__main__":

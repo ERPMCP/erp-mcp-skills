@@ -11,7 +11,7 @@ from pathlib import Path
 
 WIDGET_URI = "ui://erp/dashboard"
 SERVER_NAME = "erp-dashboard-proxy"
-SERVER_VERSION = "2.3.0"
+SERVER_VERSION = "2.4.0"
 PROTOCOL_VERSION = "2025-06-18"
 WIDGET_PATH = Path(__file__).resolve().parent / "widget" / "dist" / "index.html"
 
@@ -19,6 +19,7 @@ SESSION_ID = ""
 SESSION_INITIALIZED = False
 REQUEST_ID = 0
 LAST_FILTER_OPTIONS = {"departments": [], "people": []}
+LAST_LOCATION_OPTIONS = {"locations": [], "complete": False, "businessType": ""}
 
 
 def read_message():
@@ -77,6 +78,17 @@ FILTER_SCHEMA = {
         "startDate": {"type": "string"},
         "endDate": {"type": "string"},
         "businessType": {"type": "string", "default": "sell"},
+        "includeReferencePrice": {"type": "boolean", "default": False},
+        "priceMethod": {
+            "type": "string",
+            "enum": ["equal_weight", "area_weighted"],
+            "default": "equal_weight",
+        },
+        "filterMode": {
+            "type": "string",
+            "enum": ["both", "organization", "location", "none"],
+            "default": "both",
+        },
         "deptName": {"type": "string"},
         "userName": {"type": "string"},
         "districtName": {"type": "string"},
@@ -98,6 +110,24 @@ def tools_list():
             "pageSize": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20},
         },
     }
+    price_schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["userAction"],
+        "properties": {
+            **FILTER_SCHEMA["properties"],
+            "userAction": {"type": "string", "enum": ["calculate_price"]},
+        },
+    }
+    option_schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "filterKind": {"type": "string", "enum": ["organization", "location"], "default": "organization"},
+            "businessType": {"type": "string", "default": "sell"},
+            "userAction": {"type": "string", "enum": ["load_filter_options"]},
+        },
+    }
     return [
         tool(
             "showErpDashboard",
@@ -114,8 +144,14 @@ def tools_list():
         ),
         tool(
             "getErpDashboardFilterOptions",
-            "返回最近一次汇总查询已带回的部门和人员名称，不额外拉取业务明细。",
-            {"type": "object", "additionalProperties": False, "properties": {}},
+            "返回下拉框选项。公司部门和人员复用汇总结果；房源位置仅在用户打开该查看方式后读取并去重区域、商圈和小区，不返回房源明细。",
+            option_schema,
+            visibility=["app"],
+        ),
+        tool(
+            "queryErpDashboardSecondaryMetric",
+            "仅在用户点击计算挂牌均价后，读取计算所需字段并返回均价；不返回或保存逐套房源。",
+            price_schema,
             visibility=["app"],
         ),
         tool(
@@ -352,6 +388,19 @@ def clean_option(value):
     return text if text and text not in {"null", "None", "-"} else ""
 
 
+def waiting_price_metric(args):
+    requested = bool(args.get("includeReferencePrice")) or args.get("scenario") == "house_new_listing_price"
+    return {
+        "requested": requested,
+        "id": "currentNewListingAveragePrice",
+        "label": "当前新上房源挂牌均价",
+        "status": "waiting_for_user",
+        "display": "点击后计算",
+        "priceMethod": args.get("priceMethod", "equal_weight"),
+        "message": "先显示新增数量；点击计算后才读取价格和面积字段。",
+    }
+
+
 def monthly_summary(args):
     global LAST_FILTER_OPTIONS
     start, end, month_label = parse_month(args)
@@ -398,8 +447,13 @@ def monthly_summary(args):
             "businessLabel": business_label,
             "deptName": dept,
             "userName": user,
+            "scenario": args.get("scenario", "house_new_listing_count"),
+            "includeReferencePrice": bool(args.get("includeReferencePrice")),
+            "priceMethod": args.get("priceMethod", "equal_weight"),
+            "filterMode": args.get("filterMode", "both"),
         },
         "filterOptions": LAST_FILTER_OPTIONS,
+        "secondaryMetric": waiting_price_metric(args),
         "metrics": {
             "primary": {
                 "id": "monthlyNewListingCount",
@@ -446,6 +500,7 @@ def current_listing_summary(args):
         "view": "location",
         "filters": filters,
         "filterOptions": LAST_FILTER_OPTIONS,
+        "secondaryMetric": waiting_price_metric(args),
         "metrics": {
             "primary": {
                 "id": "currentNewListingCount",
@@ -475,6 +530,129 @@ def query_summary(args):
             "limitation": str(exc),
         }
         return text_result(structured["message"], structured, is_error=True)
+
+
+def row_number(row, aliases):
+    for key in aliases:
+        number = to_number(row.get(key))
+        if number is not None:
+            return number
+    return None
+
+
+def listing_price_summary(args):
+    if args.get("userAction") != "calculate_price":
+        return text_result(
+            "挂牌均价必须由页面中的计算按钮触发。",
+            {"phase": "QUERY_FAILED", "secondaryMetric": {"status": "blocked"}},
+            is_error=True,
+        )
+
+    _, house_biz, business_label = business_values(args.get("businessType"))
+    if house_biz not in {"sell", "rent"}:
+        return text_result(
+            "当前挂牌均价只支持买卖或租赁房源。",
+            {"phase": "QUERY_FAILED", "secondaryMetric": {"status": "unavailable"}},
+            is_error=True,
+        )
+
+    method = args.get("priceMethod") or "equal_weight"
+    page = 1
+    page_size = 200
+    total = None
+    processed = 0
+    valid_price_count = 0
+    unit_price_sum = 0.0
+    weighted_numerator = 0.0
+    weighted_denominator = 0.0
+
+    try:
+        while page <= 50:
+            query = {"bizType": house_biz, "current": page, "size": page_size, "isNew": "是"}
+            for key in ("districtName", "zoneName", "sectionLike"):
+                value = clean_option(args.get(key))
+                if value:
+                    query[key] = value
+            raw = call_upstream_tool("listHouseByCondition", query, timeout=60)
+            rows = extract_jsonish(raw)
+            rows = rows if isinstance(rows, list) else []
+            if total is None:
+                total = extract_total(raw)
+
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                area = row_number(row, ("area", "buildArea", "acreage", "面积", "建筑面积"))
+                unit_price = row_number(row, ("unitPrice", "unit_price", "挂牌单价", "单价"))
+                if unit_price is None and area and area > 0:
+                    price = row_number(row, ("price", "totalPrice", "挂牌价", "总价", "租金"))
+                    if price is not None:
+                        unit_price = price * (10000 if house_biz == "sell" else 1) / area
+                if unit_price is None or unit_price <= 0:
+                    continue
+                valid_price_count += 1
+                unit_price_sum += unit_price
+                if area and area > 0:
+                    weighted_numerator += unit_price * area
+                    weighted_denominator += area
+
+            processed += len(rows)
+            if not rows or len(rows) < page_size or (total is not None and processed >= total):
+                break
+            page += 1
+
+        if total is not None and processed < total:
+            raise RuntimeError("房源页数超过安全上限，未完成全部计算，因此不展示不完整均价。")
+        if valid_price_count == 0:
+            raise RuntimeError("没有取得可用于计算挂牌均价的有效价格字段。")
+
+        if method == "area_weighted":
+            if weighted_denominator <= 0:
+                raise RuntimeError("当前结果缺少有效面积，无法按面积计算挂牌均价。")
+            value = weighted_numerator / weighted_denominator
+            rule = "每套房按面积影响最终均价。"
+        else:
+            value = unit_price_sum / valid_price_count
+            rule = "每套有效房源都算 1 套。"
+
+        return text_result(
+            "挂牌均价计算完成。",
+            {
+                "phase": "SUMMARY_READY",
+                "secondaryMetric": {
+                    "requested": True,
+                    "id": "currentNewListingAveragePrice",
+                    "label": "当前新上房源挂牌均价",
+                    "status": "ready",
+                    "value": value,
+                    "display": f"{value:,.0f} 元/㎡",
+                    "sampleCount": valid_price_count,
+                    "priceMethod": method,
+                    "plainRule": rule,
+                    "message": "只返回计算结果，没有返回或保存逐套房源。",
+                    "technical": {
+                        "pagesRead": page,
+                        "calculationRows": processed,
+                        "detailRowsFetchedForDisplay": 0,
+                        "businessLabel": business_label,
+                    },
+                },
+            },
+        )
+    except Exception as exc:
+        return text_result(
+            "挂牌均价计算失败，没有显示假数字。",
+            {
+                "phase": "QUERY_FAILED",
+                "secondaryMetric": {
+                    "requested": True,
+                    "status": "failed",
+                    "display": "计算失败",
+                    "message": str(exc),
+                },
+            },
+            is_error=True,
+        )
 
 
 HOUSE_FIELD_ALIASES = {
@@ -548,7 +726,100 @@ def metric_details(args):
         )
 
 
-def filter_options():
+def row_text(row, aliases):
+    for key in aliases:
+        value = clean_option(row.get(key))
+        if value:
+            return value
+    return ""
+
+
+def location_filter_options(args):
+    global LAST_LOCATION_OPTIONS
+    if args.get("userAction") != "load_filter_options":
+        return text_result(
+            "房源位置下拉选项必须在用户打开该查看方式后加载。",
+            {"phase": "QUERY_FAILED", "filterOptions": {"locations": []}},
+            is_error=True,
+        )
+
+    _, house_biz, business_label = business_values(args.get("businessType"))
+    if house_biz not in {"sell", "rent"}:
+        return text_result(
+            "房源位置筛选只支持买卖或租赁房源。",
+            {"phase": "QUERY_FAILED", "filterOptions": {"locations": []}},
+            is_error=True,
+        )
+    if LAST_LOCATION_OPTIONS.get("complete") and LAST_LOCATION_OPTIONS.get("businessType") == house_biz:
+        return text_result(
+            "已返回房源位置下拉选项。",
+            {"phase": "FILTER_OPTIONS_READY", "filterOptions": LAST_LOCATION_OPTIONS, "detailRowsFetchedForDisplay": 0},
+        )
+
+    page = 1
+    page_size = 200
+    processed = 0
+    total = None
+    locations = set()
+    try:
+        while page <= 50:
+            raw = call_upstream_tool(
+                "listHouseByCondition",
+                {"bizType": house_biz, "current": page, "size": page_size, "isNew": "是"},
+                timeout=60,
+            )
+            rows = extract_jsonish(raw)
+            rows = rows if isinstance(rows, list) else []
+            if total is None:
+                total = extract_total(raw)
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                district = row_text(row, ("districtName", "district", "区域"))
+                zone = row_text(row, ("zoneName", "zone", "businessArea", "商圈", "板块"))
+                section = row_text(row, ("sectionName", "section", "communityName", "小区"))
+                if district or zone or section:
+                    locations.add((district, zone, section))
+            processed += len(rows)
+            if not rows or len(rows) < page_size or (total is not None and processed >= total):
+                break
+            page += 1
+
+        if total is not None and processed < total:
+            raise RuntimeError("房源位置选项超过安全读取上限，不能把不完整列表冒充完整下拉框。")
+        location_rows = [
+            {"district": district, "zone": zone, "section": section}
+            for district, zone, section in sorted(locations)
+        ]
+        LAST_LOCATION_OPTIONS = {
+            "locations": location_rows,
+            "complete": True,
+            "businessType": house_biz,
+            "businessLabel": business_label,
+        }
+        return text_result(
+            "房源位置下拉选项已加载。",
+            {
+                "phase": "FILTER_OPTIONS_READY",
+                "filterOptions": LAST_LOCATION_OPTIONS,
+                "technical": {"calculationRows": processed, "detailRowsFetchedForDisplay": 0},
+            },
+        )
+    except Exception as exc:
+        return text_result(
+            "暂时无法完整加载房源位置下拉选项。",
+            {
+                "phase": "QUERY_FAILED",
+                "filterOptions": {"locations": [], "complete": False},
+                "limitation": str(exc),
+            },
+            is_error=True,
+        )
+
+
+def filter_options(args):
+    if args.get("filterKind") == "location":
+        return location_filter_options(args)
     return text_result(
         "已返回最近一次汇总中的可选部门和人员。",
         {"phase": "SUMMARY_READY", "filterOptions": LAST_FILTER_OPTIONS, "detailRowsFetched": 0},
@@ -583,7 +854,9 @@ def handle_call(msg):
         elif name == "queryErpDashboardSummary":
             result(msg, query_summary(args))
         elif name == "getErpDashboardFilterOptions":
-            result(msg, filter_options())
+            result(msg, filter_options(args))
+        elif name == "queryErpDashboardSecondaryMetric":
+            result(msg, listing_price_summary(args))
         elif name == "getErpMetricDetails":
             result(msg, metric_details(args))
         else:

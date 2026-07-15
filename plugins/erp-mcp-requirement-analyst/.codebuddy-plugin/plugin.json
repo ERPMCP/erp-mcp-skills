@@ -1,7 +1,7 @@
 {
   "name": "erp-mcp-requirement-analyst",
-  "version": "2.3.0",
-  "description": "ERP MCP快速汇总、按需明细、实时筛选与需求澄清助手",
+  "version": "2.4.0",
+  "description": "ERP MCP先问关键定义、快速返回汇总、页面按需计算与点击读取明细助手",
   "skills": [
     "./skills/"
   ],

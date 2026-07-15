@@ -1,188 +1,155 @@
 ---
 name: erp-mcp-requirement-analyst
-description: Clarify vague ERP MCP questions, return verified aggregate numbers quickly, and provide a customer-friendly MCP Apps dashboard that re-queries summaries in place and loads detail rows only after an explicit click. Use for ERP statistics, contracts, opening rate, house/customer/source metrics, finance, performance, staff or organization analysis, field availability, export guidance, WorkBuddy reports, filters, drilldown, or clickable ERP results.
+description: Fast ERP question clarification and live MCP Apps dashboard. Use when customers ask for new-listing counts, listing prices, ERP summary numbers, filters, or clickable drilldowns. Ask only result-changing questions first, return a verified summary through the bundled proxy, and never preload full records.
+allowed-tools: AskUserQuestion, mcp__erp_dashboard_proxy__showErpDashboard
 ---
 
-# ERP MCP Requirement Analyst
+# ERP MCP Fast Answer
 
-Serve nontechnical ERP customers in plain Chinese. Optimize for time-to-first-answer without weakening metric definitions or inventing data.
+## First Response Hard Stop
 
-## Non-Negotiable Rules
+For requests containing `新上房源`, `新增房源`, `新上数量`, or `挂牌均价`, do not read any reference, asset, example, capability file, schema, or workspace file before responding.
 
-- Never fabricate a number, row, person, department, contract, house, amount, date, or fallback example.
-- Treat screenshots as UI references, not data sources.
-- Never recommend exporting a house/property table. Supported exports do not include one.
-- Never put an ERP URL, Token, Authorization header, or session credential in HTML or browser JavaScript.
-- Use a real MCP Apps Widget for page-internal ERP queries. A `file:///` page is only an honest read-only fallback.
-- Keep tool names, parameters, formulas, and raw field names inside a collapsed technical section.
-- Show missing or failed values as `暂无可验证数据` or `查询失败`, never as fake `0`.
-- Do not narrate internal work such as reading skills, probing schemas, or fetching pages.
+Do not call any ERP or MCP tool before the required definitions are confirmed. Do not inspect live fields, run samples, probe one page, create a plan, write code, or narrate internal work.
 
-## Fast Answer Contract
+Use `AskUserQuestion` so the customer can click an option. Prefix the question with `快速模式 2.4` so the customer can verify that the new Skill is loaded.
 
-Use four layers. Never collapse them into one large query.
+### Count Only
 
-### Layer 1: Confirm the definition
-
-Before ERP reads, ask only questions that can change the number. Ask at most 1-3 questions in one native WorkBuddy card or compact Apple-style confirmation page.
-
-For `上月新上房源数量`, usually confirm only:
-
-1. business type: 买卖、租赁、新房、全部;
-2. initial scope if the customer named one; otherwise use 全公司汇总 and expose department/person filters in the result Widget.
-
-Do not ask about sorting, export, page decoration, detail columns, or every possible filter before the first number. Those belong in the Widget.
-
-For known scenarios, run `scripts/fast_route.py` and read only the returned small scenario file. Do not read the full capability guide or inspect live business data before showing the question.
-
-### Layer 2: Return one verified summary quickly
-
-After the customer confirms the definition, immediately call the bundled proxy tool `showErpDashboard` with the confirmed filters.
-
-Choose the cheapest valid calculation strategy for the requested metric:
-
-1. `direct_aggregate`: use an existing ERP aggregate metric when it exactly matches;
-2. `server_calculation`: use an ERP/MCP server-side calculation tool when available;
-3. `derived_summary`: fetch only the fields required by the formula, calculate the number in the proxy, and discard display rows;
-4. `not_available`: explain the missing fields or allowed export needed; never guess.
-
-Do not force every metric into one official aggregate call. Some metrics have no ready-made number and must be recalculated. The hard rule is to avoid fetching full display details before the number, not to limit every calculation to one upstream call.
-
-`showErpDashboard` must:
-
-- use one direct aggregate call when an exact aggregate exists, such as `queryRptData` for `新增房源·套`;
-- otherwise run the smallest valid derived calculation plan, requesting only formula fields and only as many pages as the calculation truly needs;
-- return the number and attach the MCP Apps Widget in the same tool result;
-- return only the calculated result, calculation status, and small filter-option lists;
-- never call `listHouseByCondition`, `queryContractFinanceData`, `getHouseByHouseNo`, or paginate detail rows for the initial number.
-
-The last restriction applies only when those tools are not required to calculate the requested metric. When a derived metric genuinely needs one of them, request a minimal field set if the tool supports projection, aggregate rows immediately, do not retain or render full records, and mark `detailRowsFetchedForDisplay=0`.
-
-The first result page should therefore show the verified number as soon as calculation finishes, not wait for a polished detail table. If a derived calculation takes longer, open the Widget immediately with `正在计算核心数字` and update that card when the calculation returns. If calculation fails, show an honest error state and retry control.
-
-### Layer 3: Re-query summaries inside the Widget
-
-Changing month, business type, department, person, region, business district, or community must remain inside the Widget. The page calls `queryErpDashboardSummary` through the official MCP Apps host bridge.
-
-- A summary refresh returns only the aggregate number and supported filter options.
-- Do not fetch rows behind the number during a filter refresh.
-- Load organization option names from aggregate rows when available; do not invent hierarchy levels.
-- For monthly official new-listing counts, department/person filters are supported through `queryRptData`.
-- Geographic filters belong to the separate `当前新上房源` view because the current house-list tool has region/business-district filters but no historical new-listing date. Never present that result as `上月新增房源`.
-- Hide or disable a filter when the current metric cannot support it honestly.
-
-### Layer 4: Fetch details only on demand
-
-Make a number blue and clickable only when an exact same-definition detail query exists.
-
-- Clicking a blue number calls `getErpMetricDetails`.
-- Fetch the first page only, default 20 rows and maximum 50.
-- Fetch another page only after `加载更多` or a new page click.
-- Do not preload, pre-count by enumeration, or write all detail rows in the background.
-- If exact detail is unavailable, keep the number non-blue and open a short metric explanation instead.
-- `queryRptData` returns aggregate rows, not individual house records. Therefore `月度新增房源数量` is not drillable unless the live ERP exposes an exact historical-detail tool.
-- `当前新上房源` may be drillable through `listHouseByCondition`; label it clearly as current inventory, not the selected month's historical additions.
-
-## Deterministic Query States
-
-Use `scripts/query_gate.py`; prompt text alone is not sufficient.
-
-1. `COLLECTING_OPTIONS`: ask definition questions; all ERP business reads are blocked.
-2. `READY_FOR_SUMMARY`: the customer confirmed the definition; one logical summary task is allowed. That task may use one direct aggregate or the minimum calls required for a derived calculation.
-3. `SUMMARY_RUNNING`: the aggregate query is running; detail tools remain blocked.
-4. `SUMMARY_READY`: the verified number is visible in the Widget; summary refreshes and filter-option calls are allowed.
-5. `DETAIL_AUTHORIZED`: a real metric click or explicit detail request occurred.
-6. `DETAIL_RUNNING`: one paginated detail request is running.
-7. `DETAIL_READY`: the requested detail page is visible.
-8. `QUERY_FAILED`: show an honest failure state; do not substitute zero.
-
-Choosing an option moves only toward `READY_FOR_SUMMARY`. It never authorizes detail reads. A summary query never authorizes detail reads. Only a real metric click or explicit `查看明细` action moves to `DETAIL_AUTHORIZED`.
-
-Before every ERP call, guard its query class:
+If business type is missing, ask exactly one question and stop:
 
 ```text
-summary: queryRptData, showErpDashboard, queryErpDashboardSummary, calculateErpSummaryMetric
-filter_options: getErpDashboardFilterOptions
-detail: listHouseByCondition, getHouseByHouseNo, queryContractFinanceData, getErpMetricDetails
+快速模式 2.4
+要统计哪类房源？
+A. 买卖房源（推荐）
+B. 租赁房源
+C. 新房业务
+D. 全部业务
 ```
 
-Use `query_gate.py write-json --kind summary|detail` before writing business data. Summary permission must never allow detail files such as `houses_*.json` or `contracts_*.json`.
+### Count Plus Listing Average Price
 
-## MCP Apps Widget Requirements
-
-Use the bundled local `erp_dashboard_proxy` because this repository does not contain the remote ERP server source.
-
-The proxy exposes:
-
-- `showErpDashboard`: run the initial summary strategy and attach `ui://erp/dashboard`;
-- `queryErpDashboardSummary`: refresh one logical summary result from page filters;
-- `getErpDashboardFilterOptions`: return small supported option lists only;
-- `getErpMetricDetails`: fetch one detail page after a metric click.
-
-The Widget must use the official MCP Apps `App` client, register `toolinput` and `toolresult` handlers before connecting, and call tools with `app.callServerTool(...)`. Do not use guessed globals such as `window.app` as the primary bridge.
-
-Initial tool `structuredContent` must contain the confirmed filters and primary summary. The Widget renders it immediately. Subsequent calls update only the metric, option list, or detail region; do not regenerate the page.
-
-## New Listing Example
-
-Customer: `查询上月新上房源数量。`
-
-Correct sequence:
-
-1. Ask one compact question for business type if missing.
-2. After confirmation, call `showErpDashboard` once.
-3. The proxy calls `queryRptData` with `indexName=新增房源·套` and returns the aggregate.
-4. The Widget opens with the verified number and department/person selectors derived from aggregate rows.
-5. Selecting a department and clicking `刷新数字` calls `queryErpDashboardSummary`; it does not fetch house rows.
-6. The monthly number is non-blue when exact historical detail is unavailable.
-7. A separate `当前新上房源` view may accept region/business-district/community filters. It queries only a total first; clicking its blue total fetches the first detail page.
-
-Forbidden sequence:
+If business type or price method is missing, ask both in one response and stop:
 
 ```text
-ask question -> query all departments -> fetch 200 houses -> paginate -> calculate -> build page
+快速模式 2.4
+请确认两项，确认后马上先给你新增数量和实时看板：
+
+1. 房源类型
+A. 买卖房源（推荐）
+B. 租赁房源
+
+2. 挂牌均价怎么算
+A. 每套房都算 1 套（推荐，容易核对）
+B. 大面积房源影响更大
 ```
 
-## Data and Export Rules
+### Requested Filters Are Unclear
 
-- Prefer `queryRptData` for official aggregate statistics.
-- Use `queryContractFinanceData` only when contract/finance details are explicitly requested or needed after a drilldown action.
-- Use `listHouseByCondition` only for current house-list filters/details, not to reconstruct a historical monthly aggregate.
-- Use contract key `合同类型 + trim(合同编号)`, preserving leading zeros, letters, and hyphens.
-- Aggregate one-to-many child tables before joining.
-- Show official-statistic/detail disagreements side by side; never delete rows to force a match.
-- For headcount/opening-rate denominators, require personnel export or label the denominator `系统能看到的业务人员`.
-- Only recommend tables in `references/export_whitelist.json`.
+If the customer asks for `多层级筛选`, `按层级筛选`, or other filters without naming the dimensions, include this question in the same first popup:
 
-## Resource Routing
+```text
+3. 页面里需要哪些筛选入口？
+A. 两类都要（推荐）
+   可按公司部门和人员查看，也可按房源所在位置查看；页面会分开说明两个数字的统计方式。
+B. 只按公司部门和人员看
+   例如全公司、部门、门店或员工。月度新增数量可以这样筛；当前挂牌均价不能按这类条件筛。
+C. 只按房源所在位置看
+   例如区域、商圈或小区。当前新上总数和挂牌均价可以这样筛；月度新增数量不能按这类条件筛。
+D. 不需要额外筛选
+   只看所选月份、业务类型和全公司汇总。
+```
 
-Read only what the request needs:
+Keep the native `其他补充` entry so the customer can type a custom filter. Before accepting a custom filter, state whether it is directly available, available with a limitation, or unavailable. Never claim that a custom filter works until the proxy supports it.
 
-- Fast scenarios: `references/fast_scenario_router.json` through `scripts/fast_route.py`.
-- MCP fields and limits: `references/erp_mcp_capabilities.txt`.
-- Export fields: search `references/erp_export_field_matrix.tsv` with `scripts/lookup_field.py`.
-- Export allowlist: `references/export_whitelist.json`.
-- Plain-language UI: `references/plain_language_rules.md`.
-- Widget behavior: `references/mcp_apps_widget_rules.md`.
-- Speed and lazy detail: `references/performance_rules.md`.
+When the ERP result or a dedicated option tool can enumerate filter values, the Widget must use a dropdown. Do not replace an available department, store, person, region, business-district, or community list with a plain search box to save implementation work. This remains mandatory even when there are dozens or hundreds of values, such as 72 branches. For a large list, put search inside the dropdown; search may help narrow the list but may not replace the list. Use dependent dropdowns for parent-child values such as region -> business district -> community. Use free text only when the MCP truly cannot enumerate a complete option set, and explain that limitation beside the field.
 
-## Validation
+Ask this filter question only when the customer requested filters but left their meaning unclear. If the customer named exact filters, preserve them and state their availability. If no filters were requested, do not delay the first number merely to ask about optional filters.
 
-Before release, run `scripts/self_test.py` and the Skill Creator `quick_validate.py`.
+Do not ask about sorting, export, detail columns, or page style before the first number. These do not change the core result and can be offered in the Widget later.
 
-Tests must prove:
+Never show the unexplained labels `组织层级` or `地理层级` to customers. Use concrete wording instead:
 
-- before definition confirmation, ERP business calls are zero;
-- after confirmation, a direct-aggregate metric calls one aggregate and no detail tool;
-- a derived metric reads only formula fields and never renders or writes display-detail rows before the number;
-- summary refresh never calls a detail tool;
-- initial Widget HTML contains no embedded ERP rows or credentials;
-- detail calls occur only after a metric click and use bounded pagination;
-- monthly official count is not falsely marked drillable;
-- missing data never becomes zero;
-- no house-export recommendation appears;
-- the Widget uses the official MCP Apps client and receives initial `structuredContent`.
+- `按公司部门和人员看：例如全公司、大区、片区、门店或某位员工`;
+- `按房源所在位置看：例如区域、商圈或小区`.
 
-## Customer-Facing Completion
+Only show levels that the current ERP result actually provides. Do not invent a company structure or display empty selectors. Selecting `两类都要` means two clearly separated views; it does not mean the two kinds of filters can be mixed into one falsely unified number.
 
-Keep chat short: `已按你确认的统计方式打开实时看板，核心数字已经显示。你可以直接在页面里换条件；只有点击蓝色数字时才会读取明细。`
+If the user already supplied every required definition, skip the question and continue to the summary call. Never invent a missing choice.
+
+Skip the question only after checking that the request has one reasonable interpretation for every result-changing definition. Think carefully, but do not expose that reasoning or delay the visible response with file reads and live probes.
+
+If another plausible interpretation would change the number, ask. This remains mandatory when that interpretation uses a field the current MCP cannot query. Show the unsupported choice honestly, for example `合同录入时间（当前接口查不到）`, instead of hiding it or silently choosing a supported substitute.
+
+Never translate an unavailable request into a nearby available field without confirmation. If the customer selects an unavailable definition, say exactly what cannot be obtained, present the closest valid alternative separately, and wait for explicit approval before using it.
+
+Do not ask about decorative or optional features that do not change the first number. Those belong in the Widget after the quick result.
+
+After asking any question, stop the turn. A selected business type or price method is only an option answer; it is not permission to probe or preload data.
+
+## Only Allowed Initial Data Call
+
+After the user answers all required questions, call only `mcp__erp_dashboard_proxy__showErpDashboard`.
+
+Pass:
+
+- `scenario=house_new_listing_count` for count only;
+- `scenario=house_new_listing_price` and `includeReferencePrice=true` for count plus price;
+- confirmed `businessType`;
+- confirmed `priceMethod` when price was requested;
+- confirmed `filterMode` when the customer requested filters;
+- `month=上月` unless the customer selected another month.
+
+Do not call direct `erp` tools, including `queryRptData`, `listHouseByCondition`, `queryContractFinanceData`, or any schema/probe tool. The bundled proxy calls the required upstream ERP tool internally and attaches the real MCP Apps Widget.
+
+If `showErpDashboard` is unavailable, reply only:
+
+```text
+实时看板组件没有加载。请把插件更新到 2.4.0 后执行 /reload-plugins，再新建任务重试。
+```
+
+Do not fall back to direct ERP calls or a `file:///` report.
+
+## Quick Summary Rules
+
+Use the fastest valid calculation inside the proxy:
+
+1. exact aggregate when available;
+2. server-side calculation when available;
+3. minimum-field derived calculation when no ready-made number exists;
+4. honest unavailable state when required fields do not exist.
+
+This is one logical summary task, not a hard one-upstream-call rule. A derived metric may need multiple pages, but it must keep only formula fields and running totals. It must not return or persist display records before the number.
+
+For monthly new-listing count, use the exact `新增房源·套` aggregate. Do not count houses one by one.
+
+For listing average price, show the monthly count and Widget first. The Widget displays a separate `计算挂牌均价` action. Only that real page click may scan current new-listing price fields. Aggregate in memory and discard rows; never create `data.py`, `prices.json`, or a full house table.
+
+## Widget Rules
+
+- Filter changes call summary tools inside the Widget and return numbers only.
+- Organization filters apply to the monthly official aggregate.
+- Region, business-district, and community filters apply only to the clearly labeled current-new-listing view.
+- A number is blue only when an exact same-definition detail query exists.
+- A blue-number click loads at most 20 detail rows. `加载更多` loads the next page.
+- A non-drillable number opens its plain-language definition instead of fabricating details.
+- Never expose ERP URLs, tokens, headers, or raw MCP responses in the page.
+
+## Forbidden Output
+
+- English progress narration;
+- `Let me read`, `probe`, `schema`, `deep thinking`, or tool-planning text;
+- raw JSON, personnel rows, house rows, or Python list literals in chat;
+- any generated business-data `.py` or `.json` file;
+- full-data pagination before a real Widget action;
+- a static HTML page pretending to call MCP;
+- any recommendation to export a house/property table;
+- fake zeroes or screenshot-derived numbers.
+
+## Customer Completion
+
+After `showErpDashboard` succeeds, keep chat to one sentence:
+
+```text
+核心数字已显示在实时看板中；换条件只刷新数字，点击蓝色数字才会读取明细。
+```
