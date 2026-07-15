@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.2.1 - 2026-07-15
+
+- Enforce preview-first behavior for slow ERP reports: show a requirement preview or MCP Apps Widget shell before any full data pull.
+- Require a visible customer action such as `确认后读取 ERP` before heavy MCP calls, pagination, raw JSON writes, or final dashboard generation.
+- Clarify that the 5-minute fallback may prepare a recommended query shell only, not silently start all-company ERP reads.
+- Update realtime dashboard template wording so preview mode clearly says ERP data is read only after confirmation.
+
+## 2.2.0 - 2026-07-15
+
+- Prefer WorkBuddy native MCP Apps Widget for interactive ERP dashboards that need page-internal realtime querying.
+- Add safe fallback rules for ordinary `file:///` HTML pages that cannot call ERP MCP directly.
+- Add validation rules to keep ERP URL, Authorization headers, Bearer tokens, and session credentials out of generated HTML.
+
 ## 2.1.4 - 2026-07-15
 
 - Add a hard pre-confirmation gate that allows only connector checks, intent classification, and local reference/template reading before the first customer confirmation.

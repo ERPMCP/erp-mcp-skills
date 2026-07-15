@@ -16,6 +16,11 @@ Use this skill for customer-facing ERP MCP reporting. Customers are often not te
 - If the host supports waiting for MCP servers, wait for the ERP MCP once, then re-check tools before deciding it is unavailable.
 - Do not require the customer to say "please connect ERP MCP" in the chat when the connector is already configured. The skill must check and use it automatically.
 - HARD PRE-CONFIRMATION GATE: before the first customer confirmation page/card or layout preview is shown and answered, do not call business-data MCP tools. Allowed before confirmation: connector/tool availability check, intent classification, and reading local reference files/templates only.
+- HARD PREVIEW-FIRST GATE: for any report that may require many rows, pagination, all-company data, organization breakdown, house listings, contract details, or a polished dashboard, do not pull full ERP data immediately after the first requirement choices. First show a lightweight layout preview or MCP Apps Widget shell with `等待查询`, planned filters, planned metrics, and a clear `开始查询` / `确认后读取ERP` action.
+- Data-heavy MCP calls may start only after the customer explicitly confirms the preview or clicks the realtime Widget query button. If the customer has not confirmed, do not write raw MCP responses, JSON datasets, or final dashboards in the background.
+- HARD DEFERRED-DATA RULE: after showing any required question page, preview page, or Widget shell, stop. Do not continue "in the background." The next heavy step must be triggered by a visible customer action such as `确认后读取 ERP`, `开始查询`, or a chat reply that clearly confirms the preview.
+- The first visible output for potentially slow reports must be fast and small: explain what will be checked, show the proposed page layout/filters/metrics, and state plainly: `点击确认后，我才会开始读取 ERP 数据。`
+- Before that confirmation, never write raw ERP datasets such as `rpt_*.json`, `houses_*.json`, `contracts_*.json`, or any full MCP response file. Never print or paste raw business rows in the chat while the customer is still waiting for the preview.
 - Before the first customer confirmation, forbidden MCP calls include `queryRptData`, `queryContractFinanceData`, `listHouseByCondition`, `getHouseByHouseNo`, section market tools, and any other tool that can pull real ERP business rows, counts, samples, pages, or full datasets.
 - Before the first customer confirmation, do not probe live data shape, pull sample records, paginate house lists, fetch monthly counts, write raw JSON files, compute aggregates, or start final dashboard generation. If more data is needed, ask the customer first.
 - For common known scenarios such as `上月新上房源数量 + 挂牌均价`, use the scenario template to ask required choices immediately. Do not run live ERP data probes first.
@@ -32,6 +37,8 @@ Use this skill for customer-facing ERP MCP reporting. Customers are often not te
 - Keep all customer-facing progress and reasoning in Chinese. Do not write English status text such as `I'll start by...` or `I've reviewed...` to customers.
 - Do not improve speed by skipping necessary questions. Faster flow means avoiding premature large queries, duplicate schema probing, raw JSON chatter, and unnecessary file rewrites; it does not mean lowering the quality of requirement confirmation.
 - When a request will take a long time after the customer confirms choices, first provide a lightweight page layout preview with no fake data. Ask the customer to confirm the layout before running full data pulls and writing the final dashboard.
+- For realtime-capable reports, prefer generating the MCP Apps Widget shell first. The shell should load quickly, show filters and empty metric cards, and trigger ERP querying only when the customer clicks its query/confirm button.
+- The Widget shell is not the final report. It must be labeled as a preview/ready-to-query page and show no unverified numbers. Use placeholders such as `等待查询` or `确认后读取 ERP`.
 - Once a required-question card, requirement wizard, or layout preview is shown, stop immediately and wait for the customer's answer. Do not continue querying MCP, writing JSON files, or building the final dashboard until the customer sends the selected choices.
 - After generating a requirement wizard or layout preview HTML, try to open it immediately using the host's artifact/open-file mechanism. If automatic opening is unavailable, say plainly: `我已经生成确认页，但当前环境不能自动弹出，请点击下面链接打开。`
 - Prefer a native WorkBuddy clickable question card for the first required question when WorkBuddy supports it. If native cards are too limited or multiple choices need to be confirmed together, generate the HTML wizard and open it.
@@ -106,8 +113,8 @@ If a field is needed but only a house export would solve it, do not recommend ex
 5. Ask every critical question that changes the number before any full or sample data pull. Do not remove required questions for speed. If only one valid method remains, show an explanation card instead of a pointless choice.
 6. Add a non-required export preference question or page control: whether the final page should include table export, and whether to export summary, detail, or both.
 7. Prefer a clickable Apple-style HTML questionnaire when critical choices remain. After rendering it, try to open it and then stop.
-8. If a long report is likely, render a lightweight layout preview before full querying. The preview must show structure and planned filters only, with `等待查询`, never fake data. After rendering it, try to open it and then stop.
-9. Only after the customer answers, or after the 5-minute recommended-choice fallback is explicitly applied, inspect live MCP schema and query real MCP data. Split date ranges over 31 days where required.
+8. If a report needs interactive filters, organization scopes, drilldown, or may query many rows, render an MCP Apps Widget shell or lightweight layout preview before full querying. The preview must show structure and planned filters only, with `等待查询` or `确认后读取 ERP`, never fake data. After rendering it, try to open it and then stop.
+9. Only after the customer confirms the preview or clicks the Widget query button, inspect live MCP schema and query real MCP data. Split date ranges over 31 days where required. The 5-minute fallback may apply recommended choices and open the preview shell, but it must not silently start full ERP data pulls.
 10. Plan data sources, dedupe keys, join keys, privacy masking, and export gaps.
 11. Normalize data while preserving text IDs and front zeros. Never default missing metric values to 0.
 12. Aggregate one-to-many child tables before joining; never join raw receivable, allocation, actual-income, and payment rows directly.
@@ -163,6 +170,7 @@ Speed rules:
 - Before the first customer confirmation, do only ERP connection checks, intent classification, and lightweight schema lookup. Do not run full report queries just to decide what to ask.
 - Use known scenario templates for common requests, but still ask required choices.
 - If final generation may take more than a few minutes, show a lightweight layout preview first and ask the customer to confirm the page structure. Stop after showing it.
+- For realtime Widget reports, do not prefetch all data for the first render. Render the shell first; let the customer's click trigger the ERP query through the Widget bridge.
 - After confirmation, query in batches, keep raw JSON out of chat, and write intermediate files silently.
 - Prefer a quick verified preview of core numbers before spending time on polished final HTML when the data volume is large.
 
