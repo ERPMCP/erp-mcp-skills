@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "first_round_policy": {
+    "max_local_files": 2,
+    "read_full_capability_guide": false,
+    "inspect_live_schema": false,
+    "call_erp_business_tools": false,
+    "render_then_stop": true
+  },
+  "scenarios": [
+    {
+      "id": "house_new_listing_price",
+      "keywords_any": [
+        "新上房源",
+        "新增房源",
+        "挂牌均价",
+        "挂牌均单价"
+      ],
+      "required_keyword_groups": [
+        ["新上房源", "新增房源"],
+        ["挂牌均价", "挂牌均单价"]
+      ],
+      "template": "house_new_listing_price_fast.json",
+      "first_round_action": "render_requirement_wizard_and_wait",
+      "customer_progress": "请先确认查询条件；确认后我才会读取 ERP 数据。",
+      "forbidden_before_confirmation": [
+        "queryRptData",
+        "queryContractFinanceData",
+        "listHouseByCondition",
+        "getHouseByHouseNo",
+        "getSectionMarketBaseInfo",
+        "getSectionMarketData",
+        "listHotSection"
+      ],
+      "after_confirmation": [
+        "check_erp_connector",
+        "inspect_live_tools_only_if_needed",
+        "load_selected_scope_before_full_query",
+        "query_real_erp_data",
+        "render_realtime_widget_or_final_report"
+      ]
+    }
+  ]
+}

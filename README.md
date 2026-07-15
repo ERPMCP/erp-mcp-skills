@@ -7,7 +7,7 @@ This repository publishes the `erp-mcp-requirement-analyst` plugin. It helps ERP
 ## Plugin
 
 - Name: `erp-mcp-requirement-analyst`
-- Version: `2.1.4`
+- Version: `2.2.5`
 - Supports: WorkBuddy / CodeBuddy style plugin marketplace and Codex plugin marketplace
 - Main skill path: `plugins/erp-mcp-requirement-analyst/skills/erp-mcp-requirement-analyst/SKILL.md`
 
@@ -20,6 +20,7 @@ This repository publishes the `erp-mcp-requirement-analyst` plugin. It helps ERP
 - Do not recommend exporting a house/property listing table. Supported exports are contract, payment, received-payment, performance, and personnel exports only.
 - Customer-facing pages should use plain Chinese. Technical MCP tool names and field names belong in folded technical details.
 - Before the first customer confirmation page/card or layout preview is answered, the skill must not pull ERP business data, samples, pages, counts, or full datasets.
+- For known scenarios, the first page is selected by a tiny local router before the full capability guide or live ERP tools are consulted.
 
 ## WorkBuddy Installation
 

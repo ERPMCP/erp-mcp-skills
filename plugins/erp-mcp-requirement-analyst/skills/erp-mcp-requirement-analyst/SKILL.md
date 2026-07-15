@@ -17,6 +17,7 @@ Use this skill for customer-facing ERP MCP reporting. Customers are often not te
 - Do not require the customer to say "please connect ERP MCP" in the chat when the connector is already configured. The skill must check and use it automatically.
 - FAST-FIRST CHOICE RULE: for known/common scenarios, the first customer-visible output must be a native question card, requirement wizard, or Widget shell generated from local templates and bundled capability references. Target this before any ERP MCP data call, live schema probe, or wait-for-server step.
 - LOCAL-CAPABILITY-FIRST RULE: before the first customer confirmation, use the bundled MCP capability TXT, TSV field matrix, export whitelist, and scenario templates to decide what questions to ask. Go online to inspect live MCP schema/tools only when the bundled references cannot answer the needed capability question, or after the customer confirms and real querying begins.
+- DETERMINISTIC FAST-ROUTE RULE: run `scripts/fast_route.py --query <customer request>` before reading broad references for a known scenario. If it matches, use only the returned small wizard config, render the page, and stop. Do not replace this with ad-hoc reference reading or live MCP exploration.
 - The first choice page should appear quickly and contain only necessary choices, export preference, and a clear notice: `确认后才会读取 ERP 数据。`
 - HARD PRE-CONFIRMATION GATE: before the first customer confirmation page/card or layout preview is shown and answered, do not call business-data MCP tools. Allowed before confirmation: connector/tool availability check, intent classification, and reading local reference files/templates only.
 - HARD PREVIEW-FIRST GATE: for any report that may require many rows, pagination, all-company data, organization breakdown, house listings, contract details, or a polished dashboard, do not pull full ERP data immediately after the first requirement choices. First show a lightweight layout preview or MCP Apps Widget shell with `等待查询`, planned filters, planned metrics, and a clear `开始查询` / `确认后读取ERP` action.
@@ -70,16 +71,32 @@ Read only what is needed:
 - `references/plain_language_rules.md`: customer-facing wording rules.
 - `references/performance_rules.md`: fast confirmation, layout-preview, and long-running query rules.
 - `references/house_new_listing_price_case.md`: standard case for `上月新上房源数量 + 挂牌均价`.
+- `references/fast_scenario_router.json`: tiny first-round route index. Read through `scripts/fast_route.py`, not by loading broad references.
+- `references/house_new_listing_price_fast.json`: tiny first-round questionnaire for the new-listing and listing-price scenario.
 - `references/mcp_connection_rules.md`: ERP MCP preflight, missing connector, and customer setup messages.
 - `assets/requirement_wizard_template.html`: first-round Apple-style clickable requirement page.
 - `assets/dashboard_template.html`: final interactive dashboard template.
 - `scripts/recommend_export.py`: export recommendation with whitelist enforcement.
 - `scripts/render_requirement_wizard.py`: render first-round requirement page.
+- `scripts/fast_route.py`: deterministic first-round route script. It reads only the route index and one matched small template; it never reads the full capability guide or calls MCP.
 - `scripts/render_layout_preview.py`: render a lightweight dashboard layout preview before long queries.
 - `scripts/render_dashboard.py`: render final dashboard.
 - `scripts/validate_report_data.py`, `scripts/validate_dashboard.py`: validate data and HTML.
 
-Source priority before customer confirmation: local scenario templates, bundled MCP capability TXT, TSV matrix, export whitelist, field guide TXT, uploaded files, then XLSX audit copy. Live MCP response/schema is used after confirmation, or only when local references cannot answer a required capability question.
+Source priority before customer confirmation: first run `scripts/fast_route.py`. For a matched scenario, read only its returned small config and render the confirmation page. For an unmatched scenario, use bundled MCP capability TXT, TSV matrix, export whitelist, field guide TXT, uploaded files, then XLSX audit copy. Live MCP response/schema is used after confirmation, or only when local references cannot answer a required capability question.
+
+## Deterministic First-Round Fast Path
+
+Use this path before any broad reference read, connector wait, live schema inspection, or ERP business-data call.
+
+1. Run `python scripts/fast_route.py --query "<customer request>" --out <route.json> --wizard-config-out <wizard.json>`.
+2. If `matched` is `true`, run `render_requirement_wizard.py --config <wizard.json> --out <wizard.html>`.
+3. Open the confirmation page, tell the customer only `请先确认查询条件；确认后我才会读取 ERP 数据。`, and stop.
+4. Do not read `erp_mcp_capabilities.txt`, `final_html_interaction_rules.md`, `performance_rules.md`, or the long Markdown case file for this matched first round.
+5. Do not call or inspect `queryRptData`, `listHouseByCondition`, or any other ERP business-data tool before the confirmation payload arrives.
+6. After confirmation, follow the route's `after_confirmation` list. If the customer chose to select a department or store first, load available scope choices before any full-company report query.
+
+The fast router is a strict first-round gate, not a suggestion. It keeps mandatory questions intact while preventing unnecessary research and data pulls.
 
 ## ERP MCP Preflight
 
@@ -114,20 +131,21 @@ If a field is needed but only a house export would solve it, do not recommend ex
 
 ## Core Workflow
 
-1. Classify the request using the user's words and local scenario templates.
-2. Extract known date range, business type, metric, role attribution, scope, denominator, and output requirement.
-3. Determine required questions from local scenario templates, bundled MCP capability TXT, TSV matrix, and export whitelist. Do not call business-data MCP tools to decide what to ask.
-4. Ask every critical question that changes the number before any full or sample data pull. Do not remove required questions for speed. If only one valid method remains, show an explanation card instead of a pointless choice.
-5. Add a non-required export preference question or page control: whether the final page should include table export, and whether to export summary, detail, or both.
-6. Prefer a clickable Apple-style HTML questionnaire when critical choices remain. After rendering it, try to open it and then stop.
-7. If a report needs interactive filters, organization scopes, drilldown, or may query many rows, render an MCP Apps Widget shell or lightweight layout preview before full querying. The preview must show structure and planned filters only, with `等待查询` or `确认后读取 ERP`, never fake data. After rendering it, try to open it and then stop.
-8. Only after the customer confirms the preview or clicks the Widget query button, run ERP MCP preflight, inspect live MCP schema if needed, and query real MCP data. If live schema conflicts with bundled references, live schema wins and the result must explain the updated capability in plain Chinese. Split date ranges over 31 days where required. The 5-minute fallback may apply recommended choices and open the preview shell, but it must not silently start full ERP data pulls.
-9. Plan data sources, dedupe keys, join keys, privacy masking, and export gaps.
-10. Normalize data while preserving text IDs and front zeros. Never default missing metric values to 0.
-11. Aggregate one-to-many child tables before joining; never join raw receivable, allocation, actual-income, and payment rows directly.
-12. Reconcile official statistics and detail data; if they differ, show both, do not force a match.
-13. Render final HTML and validate it. Try to open it; only say `已自动打开` if it actually opened.
-14. Return a short chat summary with the HTML path and key limitation.
+1. Run the deterministic first-round fast path. If it matches, render the small confirmation page and stop.
+2. For an unmatched request, classify the request using the user's words and local scenario templates.
+3. Extract known date range, business type, metric, role attribution, scope, denominator, and output requirement.
+4. Determine required questions from local references. Do not call business-data MCP tools to decide what to ask.
+5. Ask every critical question that changes the number before any full or sample data pull. Do not remove required questions for speed. If only one valid method remains, show an explanation card instead of a pointless choice.
+6. Add a non-required export preference question or page control: whether the final page should include table export, and whether to export summary, detail, or both.
+7. Prefer a clickable Apple-style HTML questionnaire when critical choices remain. After rendering it, try to open it and then stop.
+8. If a report needs interactive filters, organization scopes, drilldown, or may query many rows, render an MCP Apps Widget shell or lightweight layout preview before full querying. The preview must show structure and planned filters only, with `等待查询` or `确认后读取 ERP`, never fake data. After rendering it, try to open it and then stop.
+9. Only after the customer confirms the preview or clicks the Widget query button, run ERP MCP preflight, inspect live MCP schema if needed, and query real MCP data. If live schema conflicts with bundled references, live schema wins and the result must explain the updated capability in plain Chinese. Split date ranges over 31 days where required. The 5-minute fallback may apply recommended choices and open the preview shell, but it must not silently start full ERP data pulls.
+10. Plan data sources, dedupe keys, join keys, privacy masking, and export gaps.
+11. Normalize data while preserving text IDs and front zeros. Never default missing metric values to 0.
+12. Aggregate one-to-many child tables before joining; never join raw receivable, allocation, actual-income, and payment rows directly.
+13. Reconcile official statistics and detail data; if they differ, show both, do not force a match.
+14. Render final HTML and validate it. Try to open it; only say `已自动打开` if it actually opened.
+15. Return a short chat summary with the HTML path and key limitation.
 
 ## Plain Chinese UI Rules
 

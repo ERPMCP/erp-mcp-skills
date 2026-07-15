@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.2.5 - 2026-07-15
+
+- Add a deterministic fast scenario router for the first customer-visible screen.
+- Route the common "last month's new listings + listing average price" request directly to a small local requirement template, without reading the full MCP capability guide or calling ERP tools.
+- Require the first round to render the confirmation page and stop; ERP connector checks, live schema inspection, and real ERP data reads start only after customer confirmation.
+- Add automated assertions for the zero-query first round, two-file read limit, Chinese-only customer progress, stop-after-render behavior, and post-confirmation ERP start.
+- Align WorkBuddy/Codex marketplace metadata, plugin manifests, README, and changelog at version 2.2.5.
+
 ## 2.2.0 - 2026-07-15
 
 - Make MCP Apps Widget the preferred output for ERP dashboards that need realtime interaction, including time, organization scope, business type, refresh, and drilldown.

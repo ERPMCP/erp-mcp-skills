@@ -26,8 +26,35 @@ def run(args, expect_ok=True):
 def main():
     with tempfile.TemporaryDirectory() as td:
         td = Path(td)
+        route_path = td / "fast-route.json"
+        route_wizard_config = td / "fast-route-wizard.json"
+        route = run([
+            ROOT / "scripts" / "fast_route.py",
+            "--query", "查询上月新上房源数量和挂牌均价，可以按多个层级筛选",
+            "--out", route_path,
+            "--wizard-config-out", route_wizard_config,
+        ])
+        route_data = json.loads(route_path.read_text(encoding="utf-8"))
+        if not route_data.get("matched") or route_data.get("scenario_id") != "house_new_listing_price":
+            raise SystemExit("fast route did not match the standard house scenario")
+        if route_data.get("read_files") != [
+            "references/fast_scenario_router.json",
+            "references/house_new_listing_price_fast.json",
+        ]:
+            raise SystemExit("fast route read more than the router and one small template")
+        pre = route_data.get("pre_confirmation", {})
+        if pre.get("call_erp_business_tools") or pre.get("read_full_capability_guide") or pre.get("inspect_live_schema"):
+            raise SystemExit("fast route enables ERP or broad reference reads before confirmation")
+        if pre.get("action") != "render_requirement_wizard_and_wait" or not pre.get("halt_after_render"):
+            raise SystemExit("fast route does not stop after rendering the confirmation page")
+        if any(word in pre.get("customer_progress", "").lower() for word in ("loading", "reading", "schema", "probe", "i'll")):
+            raise SystemExit("fast route leaked English/internal progress text")
+        after = route_data.get("after_confirmation", [])
+        if "query_real_erp_data" not in after or after.index("query_real_erp_data") < after.index("check_erp_connector"):
+            raise SystemExit("fast route does not defer ERP querying until after connector checks")
+
         wizard = td / "wizard.html"
-        run([ROOT / "scripts" / "render_requirement_wizard.py", "--out", wizard])
+        run([ROOT / "scripts" / "render_requirement_wizard.py", "--config", route_wizard_config, "--out", wizard])
         run([ROOT / "scripts" / "validate_requirement_wizard.py", wizard])
 
         report = {
