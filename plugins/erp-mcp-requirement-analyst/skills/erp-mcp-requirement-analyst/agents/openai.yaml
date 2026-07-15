@@ -1,14 +1,17 @@
 ﻿interface:
-  display_name: "ERP MCP 需求助手 V2"
-  short_description: "澄清ERP口径，生成交互HTML看板"
+  display_name: "ERP MCP 快速数据助手 V3"
+  short_description: "先出可信汇总，再按需读取明细"
   brand_color: "#007AFF"
-  default_prompt: "Use $erp-mcp-requirement-analyst to clarify this ERP MCP reporting request, avoid fake data, use only allowed exports, and generate an interactive HTML result."
+  default_prompt: "Use $erp-mcp-requirement-analyst to confirm only result-changing definitions, return the fastest verified summary, open the real MCP Apps Widget, and fetch detail rows only after an explicit metric click."
 
 dependencies:
   tools:
     - type: "mcp"
       value: "erp"
       description: "Fangzaixian ERP MCP read-only tools for statistics, contract finance details, house listings, and section market data."
+    - type: "mcp"
+      value: "erp_dashboard_proxy"
+      description: "Bundled MCP Apps proxy for quick summaries, in-page filters, and click-only paginated details."
 
 policy:
   allow_implicit_invocation: true

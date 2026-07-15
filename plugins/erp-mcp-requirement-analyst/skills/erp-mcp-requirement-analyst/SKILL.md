@@ -1,284 +1,188 @@
 ---
 name: erp-mcp-requirement-analyst
-description: Clarify vague ERP MCP reporting requests, check whether the erp MCP connector is actually available before querying, route requests to real ERP MCP data or supported ERP exports, forbid fabricated ERP data and unsupported house-export suggestions, and produce customer-friendly interactive HTML reports. Use for ERP statistics, contracts, opening rate, house/customer/source metrics, finance, performance allocation, people/org hierarchy, field availability, export guidance, WorkBuddy customer-facing MCP reports, or any request needing ERP data definitions, filters, drilldown, or clickable results.
+description: Clarify vague ERP MCP questions, return verified aggregate numbers quickly, and provide a customer-friendly MCP Apps dashboard that re-queries summaries in place and loads detail rows only after an explicit click. Use for ERP statistics, contracts, opening rate, house/customer/source metrics, finance, performance, staff or organization analysis, field availability, export guidance, WorkBuddy reports, filters, drilldown, or clickable ERP results.
 ---
 
 # ERP MCP Requirement Analyst
 
-Use this skill for customer-facing ERP MCP reporting. Customers are often not technical, so speak in normal business Chinese, ask only questions that change the result, query real data, and present formal results as an interactive HTML page.
-
-## Highest Priority Rules
-
-- Never invent ERP data: no fake contract numbers, people, departments, amounts, dates, rows, totals, or fallback demo values.
-- Treat screenshots as unverified UI references, never as data truth.
-- Before any real ERP data query, check whether the current conversation has usable `erp` MCP tools. Do not let this check delay the first customer choice page for known scenarios.
-- If the `erp` MCP is missing, disabled, still connecting, unauthorized, or not allowed, do not generate a "waiting for query" dashboard. Show a short connection diagnostic and setup guidance instead.
-- If the host supports waiting for MCP servers, wait for the ERP MCP only after the customer has clicked `开始查询` or an equivalent query-start action. Do not wait for MCP servers before showing the first requirement choices or preview shell for common scenarios.
-- Do not require the customer to say "please connect ERP MCP" in the chat when the connector is already configured. The skill must check and use it automatically.
-- FAST-FIRST CHOICE RULE: for known/common scenarios, the first customer-visible output must be a native question card, requirement wizard, or Widget shell generated from local templates and bundled capability references. Target this before any ERP MCP data call, live schema probe, or wait-for-server step.
-- LOCAL-CAPABILITY-FIRST RULE: before the first customer confirmation, use the bundled MCP capability TXT, TSV field matrix, export whitelist, and scenario templates to decide what questions to ask. Go online to inspect live MCP schema/tools only when the bundled references cannot answer the needed capability question, or after the customer confirms and real querying begins.
-- DETERMINISTIC FAST-ROUTE RULE: run `scripts/fast_route.py --query <customer request>` before reading broad references for a known scenario. If it matches, use only the returned small wizard config, render the page, and stop. Do not replace this with ad-hoc reference reading or live MCP exploration.
-- LOCAL WIDGET PROXY RULE: this repository does not include the remote ERP MCP server source. For page-internal realtime querying, use the bundled local `erp_dashboard_proxy` MCP server when WorkBuddy loads it. It exposes `showErpDashboard`, `queryErpDashboardData`, and `getErpMetricDetails` as the realtime Widget bridge. Do not claim that ordinary local HTML can query ERP by itself.
-- The first choice page should appear quickly and contain only necessary choices, export preference, and a clear notice: `我会先生成预览页；只有点击开始查询后才会读取 ERP 数据。`
-- STRICT STATE MACHINE: use exactly these customer-flow phases for slow/data-heavy reports: `COLLECTING_OPTIONS`, `READY_FOR_PREVIEW`, `PREVIEW_SHOWN`, `QUERY_AUTHORIZED`, `QUERY_RUNNING`, `QUERY_COMPLETE`, `QUERY_FAILED`.
-- Option replies are not query authorization. Customer choices such as business type, month, organization scope, or average-price method may only update `COLLECTING_OPTIONS` and then `READY_FOR_PREVIEW`; they must never trigger ERP reads.
-- After all required choices are collected, render the preview or Widget shell and move to `PREVIEW_SHOWN`. In `PREVIEW_SHOWN`, business ERP reads are still forbidden.
-- Only a real query-start event may move to `QUERY_AUTHORIZED`: the MCP Apps Widget `开始查询` button, a WorkBuddy native confirm/start button, or a chat reply that explicitly says `开始查询`. Waiting 5 minutes, finishing option collection, or deciding the need is clear is not authorization.
-- HARD PRE-CONFIRMATION GATE: before the first customer confirmation page/card or layout preview is shown and answered, do not call business-data MCP tools. Allowed before confirmation: connector/tool availability check, intent classification, and reading local reference files/templates only.
-- HARD PREVIEW-FIRST GATE: for any report that may require many rows, pagination, all-company data, organization breakdown, house listings, contract details, or a polished dashboard, do not pull full ERP data immediately after the first requirement choices. First show a lightweight layout preview or MCP Apps Widget shell with `等待查询`, planned filters, planned metrics, and a clear `开始查询` / `确认后读取ERP` action.
-- Data-heavy MCP calls may start only after the customer explicitly clicks the realtime Widget query button, WorkBuddy native start button, or says `开始查询`. If the customer has only answered choice questions, do not write raw MCP responses, JSON datasets, or final dashboards in the background.
-- HARD DEFERRED-DATA RULE: after showing any required question page, preview page, or Widget shell, stop. Do not continue "in the background." The next heavy step must be triggered by a visible customer action such as `确认后读取 ERP`, `开始查询`, or a chat reply that clearly confirms the preview.
-- The first visible output for potentially slow reports must be fast and small: explain what will be checked, show the proposed page layout/filters/metrics, and state plainly: `点击确认后，我才会开始读取 ERP 数据。`
-- Before query authorization, never write raw ERP datasets such as `rpt_*.json`, `houses_*.json`, `contracts_*.json`, or any full MCP response file. Never print or paste raw business rows in the chat while the customer is still waiting for the preview.
-- Before `QUERY_AUTHORIZED`, forbidden MCP calls include `queryRptData`, `queryContractFinanceData`, `listHouseByCondition`, `getHouseByHouseNo`, section market tools, and any other tool that can pull real ERP business rows, counts, samples, pages, or full datasets.
-- Before `QUERY_AUTHORIZED`, do not probe live data shape, pull sample records, paginate house lists, fetch monthly counts, write raw JSON files, compute aggregates, or start final dashboard generation. There is no exception for "just probing" or "just one page".
-- PROGRAMMATIC QUERY GATE: use `scripts/query_gate.py` to create and enforce the report phase for slow or data-heavy reports. In `COLLECTING_OPTIONS`, `READY_FOR_PREVIEW`, or `PREVIEW_SHOWN`, any business tool guard or raw business JSON write must fail with `客户尚未点击开始查询，禁止读取ERP业务数据。`. Do not rely on prompt text alone.
-- Before writing raw business files such as `prices.json`, `counts_*.json`, `houses_*.json`, `contracts_*.json`, or `rpt_*.json`, call `query_gate.py write-json`. Before calling any business ERP tool, call `query_gate.py guard`.
-- For common known scenarios such as `上月新上房源数量 + 挂牌均价`, use the scenario template to ask required choices immediately. Do not run live ERP data probes first.
-- Every number must have source, query/filter conditions, plain-language date rule, formula, numerator/denominator when relevant, dedupe key, raw/clean/deduped counts when available, limitations, and drilldown status.
-- All formal query/calculation results must generate self-contained interactive HTML. Chat should only give a short completion note, the HTML link, and serious limitations.
-- The HTML must offer real interaction where possible: time, scope, business type, search/filter, detail drilldown, metric explanation, and export buttons if real data exists.
-- Final dashboards for house/listing, contract, customer, source, finance, or performance data must include practical top filters when relevant: time, organization scope, business type, keyword search, and geographic filters such as region, business district, and community/project. If the page is an MCP Apps Widget, those filters must be sent in the realtime MCP query arguments.
-- Any metric that can be reconciled to detail rows must be clickable. If matching detail rows are embedded in the page, clicking opens the detail table. If the page is a realtime MCP Apps Widget and a detail tool exists, clicking the metric calls the detail tool and updates the detail area. If no detail is available, clicking or the metric note must explain why.
-- Prefer a WorkBuddy native MCP Apps Widget for ERP result pages by default. Most ERP reports need interaction such as changing time, changing organization scope, switching business type, refreshing data, or drilling into details, so first judge whether the result should be a realtime Widget.
-- If the report has filters or actions that require re-reading ERP data, prioritize MCP Apps Widget over ordinary HTML. Ordinary self-contained HTML is only the fallback when the host or ERP MCP does not currently support Widget/secure-bridge output.
-- If the customer asks for page-internal realtime ERP querying, use a WorkBuddy native MCP Apps Widget or another host-provided secure bridge. A normal `file:///.../dashboard.html` page cannot directly call the current conversation's ERP MCP and must not pretend that it can.
-- If the Widget bridge is needed and the remote ERP MCP does not provide Widget resources, call the local proxy tool `showErpDashboard` instead of generating a dead `file:///dashboard.html` as the primary experience.
-- Never put ERP MCP URL, Authorization header, Token, or session credentials inside generated HTML or browser JavaScript. Realtime page querying is allowed only through a host bridge such as `app.callServerTool()` or an explicitly provided secure local/remote bridge.
-- Do not show fake `0`. Missing data, failed scripts, failed MCP calls, or broken page data must display `等待查询`, `暂无可验证数据`, or `加载失败`.
-- Do not expose technical jargon in the main UI. Put tool names, field names, JSON, formulas, and raw parameters only in a collapsed `数据来源与技术说明` section.
-- If a semi-professional business term must appear in customer-facing chat, option cards, or HTML, add a short explanation in parentheses immediately after the term. Example: `每套房等权均价（每套房都算 1 套）`.
-- Keep all customer-facing progress and reasoning in Chinese. Do not write English status text such as `I'll start by...` or `I've reviewed...` to customers.
-- Do not narrate internal setup steps to customers. Do not show messages like `loading the skill`, `reading reference files`, `explore available tools`, `let me do exploratory calls`, or `I have studied the rules`. If progress must be shown, use one short Chinese sentence such as `我先确认 ERP 是否已连接，然后给你一个可确认的查询页面。`
-- Do not deliver HTML whose JavaScript may stop after the first filter action. Metric update code must target the actual metric value element directly, or check that a child exists before writing. Dangerous patterns such as `document.getElementById(id).querySelector(".value").innerHTML = ...` must be fixed before delivery.
-- Do not improve speed by skipping necessary questions. Faster flow means avoiding premature large queries, duplicate schema probing, raw JSON chatter, and unnecessary file rewrites; it does not mean lowering the quality of requirement confirmation.
-- When a request will take a long time after the customer confirms choices, first provide a lightweight page layout preview with no fake data. Ask the customer to confirm the layout before running full data pulls and writing the final dashboard.
-- For realtime-capable reports, prefer generating the MCP Apps Widget shell first. The shell should load quickly, show filters and empty metric cards, and trigger ERP querying only when the customer clicks its query/confirm button.
-- The Widget shell is not the final report. It must be labeled as a preview/ready-to-query page and show no unverified numbers. Use placeholders such as `等待查询` or `确认后读取 ERP`.
-- Once a required-question card is shown, stop and wait for the selected choices. Once choices are complete, render the preview/Widget shell and stop again. Do not continue querying MCP, writing JSON files, or building the final dashboard until the customer explicitly starts the query.
-- After generating a requirement wizard or layout preview HTML, try to open it immediately using the host's artifact/open-file mechanism. If automatic opening is unavailable, say plainly: `我已经生成确认页，但当前环境不能自动弹出，请点击下面链接打开。`
-- Prefer a native WorkBuddy clickable question card for the first required question when WorkBuddy supports it. If native cards are too limited or multiple choices need to be confirmed together, generate the HTML wizard and open it.
-- Confirmation wait time is 5 minutes. If there is still no customer confirmation after 5 minutes and the host supports continuing, use the recommended choices only to prepare and open the preview shell. The final result must clearly say: `因为 5 分钟内没有收到确认，本次先按推荐方案准备查询入口。你仍然可以重新修改选择。` Never use timeout to start ERP data reads.
-- Give customers a clear optional entry for result export: `最终页面是否需要导出表格？` This is a page-output preference, not a substitute for metric definition questions.
-- Never recommend exporting a house/property table. The supported export list has no house export. Do not suggest `房源表`, `新上房源表`, `房源明细导出`, `在售房源导出`, `在租房源导出`, or any invented house export.
-- Do not call MCP-visible people `公司总人数` or `全员`. Headcount/opening-rate denominators require personnel export, or must be labeled `系统能看到的业务人员`.
-- Do not interpret unknown status codes. Show raw values and say the meaning is not公开.
-- Do not treat `finishStatus`, `status`, or `assignStatus` as contract approval status. If approval status is requested, explain that current data cannot reliably filter it.
-- Current known ERP MCP is read-only. Do not claim to modify, approve, settle, create, or delete ERP records.
-
-## Resource Map
-
-Read only what is needed:
-
-- `references/erp_mcp_capabilities.txt`: MCP tools, params, observed fields, limits, and date-risk notes.
-- `references/erp_export_field_matrix.tsv`: fast field support matrix. Search with `scripts/lookup_field.py`.
-- `references/erp_export_field_guide.txt`: export-table field guide, join keys, anti-duplication, scenario guidance.
-- `references/export_whitelist.json`: the only export tables that may be recommended.
-- `references/house_export_forbidden.md`: hard rule for house/new-listing scenarios.
-- `references/final_html_interaction_rules.md`: final HTML, filters, opening, and no-fake-0 requirements.
-- `references/mcp_apps_widget_rules.md`: realtime page querying rules, MCP Apps Widget requirements, and safe fallback behavior.
-- `references/plain_language_rules.md`: customer-facing wording rules.
-- `references/performance_rules.md`: fast confirmation, layout-preview, and long-running query rules.
-- `references/house_new_listing_price_case.md`: standard case for `上月新上房源数量 + 挂牌均价`.
-- `references/fast_scenario_router.json`: tiny first-round route index. Read through `scripts/fast_route.py`, not by loading broad references.
-- `references/house_new_listing_price_fast.json`: tiny first-round questionnaire for the new-listing and listing-price scenario.
-- `references/mcp_connection_rules.md`: ERP MCP preflight, missing connector, and customer setup messages.
-- `assets/requirement_wizard_template.html`: first-round Apple-style clickable requirement page.
-- `assets/dashboard_template.html`: final interactive dashboard template.
-- `scripts/recommend_export.py`: export recommendation with whitelist enforcement.
-- `scripts/render_requirement_wizard.py`: render first-round requirement page.
-- `scripts/fast_route.py`: deterministic first-round route script. It reads only the route index and one matched small template; it never reads the full capability guide or calls MCP.
-- `scripts/render_layout_preview.py`: render a lightweight dashboard layout preview before long queries.
-- `scripts/render_widget_shell.py`: render a fast Widget shell or honest static fallback with no real numbers.
-- `scripts/query_gate.py`: phase/state gate for preview-first reports; blocks business ERP reads and raw business JSON writes before confirmation.
-- `scripts/render_dashboard.py`: render final dashboard.
-- `scripts/validate_report_data.py`, `scripts/validate_dashboard.py`: validate data and HTML.
-
-Source priority before query authorization: first run `scripts/fast_route.py`. For a matched scenario, read only its returned small config and render the confirmation page. For an unmatched scenario, use bundled MCP capability TXT, TSV matrix, export whitelist, field guide TXT, uploaded files, then XLSX audit copy. Live MCP response/schema is used after the customer clicks `开始查询`, or only when local references cannot answer a required capability question without reading business data.
-
-## Deterministic First-Round Fast Path
-
-Use this path before any broad reference read, connector wait, live schema inspection, or ERP business-data call.
-
-1. Run `python scripts/fast_route.py --query "<customer request>" --out <route.json> --wizard-config-out <wizard.json>`.
-2. If `matched` is `true`, run `render_requirement_wizard.py --config <wizard.json> --out <wizard.html>`.
-3. Open the confirmation page, tell the customer only `请先选择查询条件；我会先生成预览页，点击开始查询后才会读取 ERP 数据。`, and stop.
-4. Do not read `erp_mcp_capabilities.txt`, `final_html_interaction_rules.md`, `performance_rules.md`, or the long Markdown case file for this matched first round.
-5. Do not call or inspect `queryRptData`, `listHouseByCondition`, or any other ERP business-data tool before the confirmation payload arrives.
-6. After option confirmation, do not query ERP. Mark options ready, render the preview or Widget shell, and stop. Only after `开始查询`, run ERP preflight and real data reads.
+Serve nontechnical ERP customers in plain Chinese. Optimize for time-to-first-answer without weakening metric definitions or inventing data.
 
-The fast router is a strict first-round gate, not a suggestion. It keeps mandatory questions intact while preventing unnecessary research and data pulls.
+## Non-Negotiable Rules
 
-## ERP MCP Preflight
+- Never fabricate a number, row, person, department, contract, house, amount, date, or fallback example.
+- Treat screenshots as UI references, not data sources.
+- Never recommend exporting a house/property table. Supported exports do not include one.
+- Never put an ERP URL, Token, Authorization header, or session credential in HTML or browser JavaScript.
+- Use a real MCP Apps Widget for page-internal ERP queries. A `file:///` page is only an honest read-only fallback.
+- Keep tool names, parameters, formulas, and raw field names inside a collapsed technical section.
+- Show missing or failed values as `暂无可验证数据` or `查询失败`, never as fake `0`.
+- Do not narrate internal work such as reading skills, probing schemas, or fetching pages.
 
-Do this before real ERP reads, not necessarily before the first choice page.
+## Fast Answer Contract
 
-For known/common scenarios, first render the customer choice page from local templates. Then render the preview/Widget shell after choices are complete. Run preflight only after the customer clicks the Widget query button or explicitly says `开始查询`.
+Use four layers. Never collapse them into one large query.
 
-1. Inspect current available tools/connectors for an `erp` MCP server and ERP query tools.
-2. If ERP tools are available, mark ERP as usable and continue to requirement confirmation. Do not call business-data tools yet unless the required-choice gate has already been cleared.
-3. If the host says MCP is still connecting, wait once when possible, then inspect again.
-4. If the connector exists but needs authorization, say: `ERP 连接需要重新授权。请在连接器里重新登录或更新访问令牌。`
-5. If the connector is disabled, say: `ERP 连接器目前是关闭的。请先启用 ERP 连接器，再重新查询。`
-6. If no ERP connector exists in the current conversation, say: `当前任务还没有加载 ERP 连接器，所以我不能直接读取 ERP 数据。请先在 WorkBuddy/Codex 的连接器或插件设置里启用 erp。`
-7. If the plugin bundled MCP config is present but the token is missing, say: `插件已经带了 ERP 连接配置，但还缺访问令牌。请填写 ERP MCP Token，真实 Token 不要发到公开仓库。`
-8. Do not create a formal result dashboard until a real MCP query or real uploaded export has succeeded.
+### Layer 1: Confirm the definition
 
-Preflight is only a connection check. It is not permission to probe data. Tool schema inspection is allowed only if it does not call ERP business data tools; if unsure, skip schema probing and ask the required customer questions first.
+Before ERP reads, ask only questions that can change the number. Ask at most 1-3 questions in one native WorkBuddy card or compact Apple-style confirmation page.
 
-The customer should not need to write tool names such as `queryRptData` or `listHouseByCondition`. Those are internal choices.
+For `上月新上房源数量`, usually confirm only:
 
-## Allowed Export Tables Only
+1. business type: 买卖、租赁、新房、全部;
+2. initial scope if the customer named one; otherwise use 全公司汇总 and expose department/person filters in the result Widget.
 
-Only recommend these exports:
+Do not ask about sorting, export, page decoration, detail columns, or every possible filter before the first number. Those belong in the Widget.
 
-- 付款明细导出
-- 合同信息导出
-- 实收明细导出
-- 业绩明细导出（应收应付、业绩分配）
-- 人员信息导出（汇总、人员列表）
+For known scenarios, run `scripts/fast_route.py` and read only the returned small scenario file. Do not read the full capability guide or inspect live business data before showing the question.
 
-If a field is needed but only a house export would solve it, do not recommend export. Say in plain Chinese that current supported exports cannot provide that historical house detail, then suggest a product/API enhancement.
+### Layer 2: Return one verified summary quickly
 
-## Core Workflow
+After the customer confirms the definition, immediately call the bundled proxy tool `showErpDashboard` with the confirmed filters.
 
-1. Run the deterministic first-round fast path. If it matches, render the small confirmation page and stop.
-2. For an unmatched request, classify the request using the user's words and local scenario templates.
-3. Extract known date range, business type, metric, role attribution, scope, denominator, and output requirement.
-4. Determine required questions from local references. Do not call business-data MCP tools to decide what to ask.
-5. Ask every critical question that changes the number before any full or sample data pull. Do not remove required questions for speed. If only one valid method remains, show an explanation card instead of a pointless choice.
-6. Add a non-required export preference question or page control: whether the final page should include table export, and whether to export summary, detail, or both.
-7. Prefer a clickable Apple-style HTML questionnaire when critical choices remain. After rendering it, try to open it and then stop.
-8. If a report needs interactive filters, organization scopes, drilldown, or may query many rows, render an MCP Apps Widget shell or lightweight layout preview before full querying. The preview must show structure and planned filters only, with `等待查询` or `确认后读取 ERP`, never fake data. After rendering it, try to open it and then stop.
-9. Only after the customer clicks `开始查询`, run ERP MCP preflight, inspect live MCP schema if needed, and query real MCP data. If using the local proxy Widget, the button calls `queryErpDashboardData`; otherwise the agent may call the ERP tools after passing `query_gate.py authorize` and `query_gate.py guard`. If live schema conflicts with bundled references, live schema wins and the result must explain the updated capability in plain Chinese. Split date ranges over 31 days where required. The 5-minute fallback may apply recommended choices and open the preview shell, but it must not silently start full ERP data pulls.
-10. Plan data sources, dedupe keys, join keys, privacy masking, and export gaps.
-11. Normalize data while preserving text IDs and front zeros. Never default missing metric values to 0.
-12. Aggregate one-to-many child tables before joining; never join raw receivable, allocation, actual-income, and payment rows directly.
-13. Reconcile official statistics and detail data; if they differ, show both, do not force a match.
-14. Render final HTML and validate it. Try to open it; only say `已自动打开` if it actually opened.
-15. Return a short chat summary with the HTML path and key limitation.
+Choose the cheapest valid calculation strategy for the requested metric:
 
-## Plain Chinese UI Rules
+1. `direct_aggregate`: use an existing ERP aggregate metric when it exactly matches;
+2. `server_calculation`: use an ERP/MCP server-side calculation tool when available;
+3. `derived_summary`: fetch only the fields required by the formula, calculate the number in the proxy, and discard display rows;
+4. `not_available`: explain the missing fields or allowed export needed; never guess.
 
-Use ordinary customer-facing terms in the main UI:
+Do not force every metric into one official aggregate call. Some metrics have no ready-made number and must be recalculated. The hard rule is to avoid fetching full display details before the number, not to limit every calculation to one upstream call.
 
-- `系统可以直接查`
-- `系统能查，但统计方式需要说明`
-- `需要补充一张系统表格`
-- `这个数字按哪个日期统计`
-- `查看这个数字对应的明细`
-- `每平方米挂牌价`
-- `当前新上房源参考均价`
-- `统计月份`
-- `查看范围`
-- `业务类型`
-- `每套房等权均价（每套房都算 1 套）`
-- `按面积计算整体均价（大面积房源影响更大）`
+`showErpDashboard` must:
 
-Do not show these in main UI text: `queryRptData`, `listHouseByCondition`, `queryContractFinanceData`, `isNew`, `unitPrice`, `bizType`, `schema`, `JSON`, `日期口径`, `MCP支持但口径需说明`, `算术平均`, `面积加权`, `drilldown`, `lineage`.
+- use one direct aggregate call when an exact aggregate exists, such as `queryRptData` for `新增房源·套`;
+- otherwise run the smallest valid derived calculation plan, requesting only formula fields and only as many pages as the calculation truly needs;
+- return the number and attach the MCP Apps Widget in the same tool result;
+- return only the calculated result, calculation status, and small filter-option lists;
+- never call `listHouseByCondition`, `queryContractFinanceData`, `getHouseByHouseNo`, or paginate detail rows for the initial number.
 
-Technical names may appear only inside collapsed `数据来源与技术说明`.
+The last restriction applies only when those tools are not required to calculate the requested metric. When a derived metric genuinely needs one of them, request a minimal field set if the tool supports projection, aggregate rows immediately, do not retain or render full records, and mark `detailRowsFetchedForDisplay=0`.
 
-When asking a question in WorkBuddy's native choice card, use the same plain-Chinese rule as HTML. For example:
+The first result page should therefore show the verified number as soon as calculation finishes, not wait for a polished detail table. If a derived calculation takes longer, open the Widget immediately with `正在计算核心数字` and update that card when the calculation returns. If calculation fails, show an honest error state and retry control.
 
-- Good: `每套房等权均价（每套房都算 1 套）`
-- Good: `按面积计算整体均价（大面积房源影响更大）`
-- Bad: `每套房等权均价`
-- Bad: `按面积加权均价`
+### Layer 3: Re-query summaries inside the Widget
 
-For any first-use professional term, use `术语（解释）`. Keep the explanation short; put longer details below the option.
+Changing month, business type, department, person, region, business district, or community must remain inside the Widget. The page calls `queryErpDashboardSummary` through the official MCP Apps host bridge.
 
-For terse WorkBuddy choice cards, never leave labels like `两种都展示`, `每套等权`, or `面积加权` unexplained. Use:
+- A summary refresh returns only the aggregate number and supported filter options.
+- Do not fetch rows behind the number during a filter refresh.
+- Load organization option names from aggregate rows when available; do not invent hierarchy levels.
+- For monthly official new-listing counts, department/person filters are supported through `queryRptData`.
+- Geographic filters belong to the separate `当前新上房源` view because the current house-list tool has region/business-district filters but no historical new-listing date. Never present that result as `上月新增房源`.
+- Hide or disable a filter when the current metric cannot support it honestly.
 
-- `两种都展示（同时给出两套算法结果，方便对比）`
-- `每套等权（每套房都算 1 套）`
-- `面积加权（大面积房源影响更大）`
+### Layer 4: Fetch details only on demand
 
-Then add one sentence below the option explaining how it is calculated.
+Make a number blue and clickable only when an exact same-definition detail query exists.
 
-## Performance Without Quality Loss
+- Clicking a blue number calls `getErpMetricDetails`.
+- Fetch the first page only, default 20 rows and maximum 50.
+- Fetch another page only after `加载更多` or a new page click.
+- Do not preload, pre-count by enumeration, or write all detail rows in the background.
+- If exact detail is unavailable, keep the number non-blue and open a short metric explanation instead.
+- `queryRptData` returns aggregate rows, not individual house records. Therefore `月度新增房源数量` is not drillable unless the live ERP exposes an exact historical-detail tool.
+- `当前新上房源` may be drillable through `listHouseByCondition`; label it clearly as current inventory, not the selected month's historical additions.
 
-Read `references/performance_rules.md` when a request is slow, requires many MCP calls, or will generate a large HTML report.
+## Deterministic Query States
 
-Speed rules:
+Use `scripts/query_gate.py`; prompt text alone is not sufficient.
 
-- Do not skip mandatory metric-definition questions.
-- Before the first customer confirmation, use local bundled references first. Do not wait for MCP, inspect live schema, or run ERP connection checks when the local references are enough to show the first choice page.
-- Use known scenario templates for common requests, but still ask required choices.
-- If final generation may take more than a few minutes, show a lightweight layout preview first and ask the customer to confirm the page structure. Stop after showing it.
-- For realtime Widget reports, do not prefetch all data for the first render. Render the shell first; let the customer's click trigger the ERP query through the Widget bridge.
-- After `开始查询`, query in batches, keep raw JSON out of chat, and write intermediate files silently.
-- Prefer a quick verified preview of core numbers before spending time on polished final HTML when the data volume is large.
+1. `COLLECTING_OPTIONS`: ask definition questions; all ERP business reads are blocked.
+2. `READY_FOR_SUMMARY`: the customer confirmed the definition; one logical summary task is allowed. That task may use one direct aggregate or the minimum calls required for a derived calculation.
+3. `SUMMARY_RUNNING`: the aggregate query is running; detail tools remain blocked.
+4. `SUMMARY_READY`: the verified number is visible in the Widget; summary refreshes and filter-option calls are allowed.
+5. `DETAIL_AUTHORIZED`: a real metric click or explicit detail request occurred.
+6. `DETAIL_RUNNING`: one paginated detail request is running.
+7. `DETAIL_READY`: the requested detail page is visible.
+8. `QUERY_FAILED`: show an honest failure state; do not substitute zero.
 
-## First-Round Requirement HTML
+Choosing an option moves only toward `READY_FOR_SUMMARY`. It never authorizes detail reads. A summary query never authorizes detail reads. Only a real metric click or explicit `查看明细` action moves to `DETAIL_AUTHORIZED`.
 
-Generate a requirement page only when user intent is vague and decisions affect the result. Include compact base filters, 2-5 critical questions at most, full-card clickable options, support status in plain Chinese, allowed export requirements, copy/JSON fallback, and a summary that does not cover options.
+Before every ERP call, guard its query class:
 
-After generating this page, the next action must be one of:
+```text
+summary: queryRptData, showErpDashboard, queryErpDashboardSummary, calculateErpSummaryMetric
+filter_options: getErpDashboardFilterOptions
+detail: listHouseByCondition, getHouseByHouseNo, queryContractFinanceData, getErpMetricDetails
+```
 
-1. open the page automatically and say `我已弹出确认页，请先选择后继续`;
-2. if automatic opening is not possible, provide one obvious link and say `请先打开确认页选择，选择后把结果发回对话`;
-3. if using WorkBuddy native cards, present the card and wait.
+Use `query_gate.py write-json --kind summary|detail` before writing business data. Summary permission must never allow detail files such as `houses_*.json` or `contracts_*.json`.
 
-Do not continue with report queries or final HTML generation before receiving the choices.
+## MCP Apps Widget Requirements
 
-Do not create dropdowns for choices that are not real choices. For example, for `上月新上房源数量 + 挂牌均价`, do not show a dropdown like `数量=上月(2026-06);均价=本月(2026-07)`. Instead show:
+Use the bundled local `erp_dashboard_proxy` because this repository does not contain the remote ERP server source.
 
-`新上房源数量统计所选月份；挂牌均价根据当前仍被系统标记为“新上”的房源计算。这两个数字不一定来自同一批房源。`
+The proxy exposes:
 
-For organization filters, show levels only if real data supports them: 全公司、运营、大区、片区、门店、分组、个人. If no org data exists, show only `全公司` and explain that organization structure has not been loaded.
+- `showErpDashboard`: run the initial summary strategy and attach `ui://erp/dashboard`;
+- `queryErpDashboardSummary`: refresh one logical summary result from page filters;
+- `getErpDashboardFilterOptions`: return small supported option lists only;
+- `getErpMetricDetails`: fetch one detail page after a metric click.
 
-Progress text should count only questions that truly require customer confirmation. If all base filters already have defaults, show `查询条件已设置` rather than `已完成 0/3 项`.
+The Widget must use the official MCP Apps `App` client, register `toolinput` and `toolresult` handlers before connecting, and call tools with `app.callServerTool(...)`. Do not use guessed globals such as `window.app` as the primary bridge.
 
-## Final HTML Dashboard Rules
+Initial tool `structuredContent` must contain the confirmed filters and primary summary. The Widget renders it immediately. Subsequent calls update only the metric, option list, or detail region; do not regenerate the page.
 
-Every final result HTML must include title, generated time, current filters, metric cards, detail/empty state, limitations, next steps, collapsed data source, clickable blue numbers only for exact drilldown, and metric explanation for non-drillable values.
+## New Listing Example
 
-If the requirement-selection payload contains `auto_defaulted: true`, show a visible notice near the top:
+Customer: `查询上月新上房源数量。`
 
-`因为 5 分钟内没有收到确认，本次先按推荐方案生成。你仍然可以重新修改选择并生成新页面。`
+Correct sequence:
 
-Also include a `重新选择条件` action that opens or links back to the requirement wizard when available.
+1. Ask one compact question for business type if missing.
+2. After confirmation, call `showErpDashboard` once.
+3. The proxy calls `queryRptData` with `indexName=新增房源·套` and returns the aggregate.
+4. The Widget opens with the verified number and department/person selectors derived from aggregate rows.
+5. Selecting a department and clicking `刷新数字` calls `queryErpDashboardSummary`; it does not fetch house rows.
+6. The monthly number is non-blue when exact historical detail is unavailable.
+7. A separate `当前新上房源` view may accept region/business-district/community filters. It queries only a total first; clicking its blue total fetches the first detail page.
 
-Separate `应用筛选` for loaded data from `按此条件重新查询` for conditions requiring a new MCP call. Never show controls that do not work.
+Forbidden sequence:
 
-For page-internal realtime querying, or for any report with time/scope/business-type filters that may need fresh ERP data, read `references/mcp_apps_widget_rules.md` before generating the page.
+```text
+ask question -> query all departments -> fetch 200 houses -> paginate -> calculate -> build page
+```
 
-If the page is a WorkBuddy native MCP Apps Widget or another verified secure bridge is available, the query button may call ERP through that bridge and update the page in place.
+## Data and Export Rules
 
-If the page is a normal local/static HTML file and cannot call MCP by itself, the button text must make that clear: `复制筛选条件，回到对话继续查询`. Do not label it `按此条件重新查询` unless the click actually reaches ERP through a verified bridge.
+- Prefer `queryRptData` for official aggregate statistics.
+- Use `queryContractFinanceData` only when contract/finance details are explicitly requested or needed after a drilldown action.
+- Use `listHouseByCondition` only for current house-list filters/details, not to reconstruct a historical monthly aggregate.
+- Use contract key `合同类型 + trim(合同编号)`, preserving leading zeros, letters, and hyphens.
+- Aggregate one-to-many child tables before joining.
+- Show official-statistic/detail disagreements side by side; never delete rows to force a match.
+- For headcount/opening-rate denominators, require personnel export or label the denominator `系统能看到的业务人员`.
+- Only recommend tables in `references/export_whitelist.json`.
 
-## Tool Routing
+## Resource Routing
 
-Use `queryRptData` for official aggregate statistics such as 新增房源、客源、带看、跟进、分享、访问、通话、合同应收、合同实收、合同成交单量、分边量.
+Read only what the request needs:
 
-Use `queryContractFinanceData` for 合同明细、业绩分配、实收明细、应收应付、付款明细.
+- Fast scenarios: `references/fast_scenario_router.json` through `scripts/fast_route.py`.
+- MCP fields and limits: `references/erp_mcp_capabilities.txt`.
+- Export fields: search `references/erp_export_field_matrix.tsv` with `scripts/lookup_field.py`.
+- Export allowlist: `references/export_whitelist.json`.
+- Plain-language UI: `references/plain_language_rules.md`.
+- Widget behavior: `references/mcp_apps_widget_rules.md`.
+- Speed and lazy detail: `references/performance_rules.md`.
 
-Use house tools only through MCP: `listHouseByCondition` and `getHouseByHouseNo`. Never recommend a house export if historical house fields are missing.
+## Validation
 
-Use section tools for market data: `getSectionMarketBaseInfo`, `getSectionMarketData`, `listHotSection`.
+Before release, run `scripts/self_test.py` and the Skill Creator `quick_validate.py`.
 
-## Standard Metric Rules
+Tests must prove:
 
-Contract key: use `合同类型 + trim(合同编号)`, preserving leading zeros, letters, and hyphens.
+- before definition confirmation, ERP business calls are zero;
+- after confirmation, a direct-aggregate metric calls one aggregate and no detail tool;
+- a derived metric reads only formula fields and never renders or writes display-detail rows before the number;
+- summary refresh never calls a detail tool;
+- initial Widget HTML contains no embedded ERP rows or credentials;
+- detail calls occur only after a metric click and use bounded pagination;
+- monthly official count is not falsely marked drillable;
+- missing data never becomes zero;
+- no house-export recommendation appears;
+- the Widget uses the official MCP Apps client and receives initial `structuredContent`.
 
-Opening rate: formula must show denominator source. Personnel denominator requires personnel export unless user accepts `系统能看到的业务人员`.
+## Customer-Facing Completion
 
-House new listing quantity and listing average price must be split into two numbers:
-
-- `月度新增房源数量`: the selected month's official new-listing count.
-- `当前新上房源参考均价`: calculated from homes that are currently still marked as new.
-
-Explain that the second number is a current reference, not a strict selected-month new-listing average. Do not recommend a house export.
-
-## Export Guidance
-
-When a needed field is missing, search the field matrix, check `export_whitelist.json`, and recommend only whitelist tables. If the solution would require a forbidden house export, explain limitation and suggest product/API enhancement.
-
-## Validation Expectations
-
-Before final delivery, run report data validation and HTML validation when relevant. Check no placeholder tokens, no fake zero for missing metrics, no forbidden house-export recommendation, no empty dropdowns, no main UI technical jargon, and no fixed summary overlay blocking choices. If browser automation is unavailable, say only `已完成静态校验`.
-
-## Final Chat Pattern
-
-Use a short final note: `已生成交互 HTML：<file>`, plus only severe limitations. Do not paste full tables or long technical explanations in chat.
+Keep chat short: `已按你确认的统计方式打开实时看板，核心数字已经显示。你可以直接在页面里换条件；只有点击蓝色数字时才会读取明细。`

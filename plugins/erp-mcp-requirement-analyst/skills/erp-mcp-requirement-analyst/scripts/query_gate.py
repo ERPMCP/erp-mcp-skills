@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic guard for the preview-first ERP workflow.
-
-This script does not call ERP. It records the report phase and blocks accidental
-business-data reads or raw JSON writes before the customer clicks start query.
-"""
+"""Deterministic two-tier gate for fast ERP summaries and lazy details."""
 
 import argparse
 import fnmatch
@@ -12,38 +8,49 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 PHASE_COLLECTING = "COLLECTING_OPTIONS"
-PHASE_READY = "READY_FOR_PREVIEW"
-PHASE_PREVIEW = "PREVIEW_SHOWN"
-PHASE_AUTHORIZED = "QUERY_AUTHORIZED"
-PHASE_RUNNING = "QUERY_RUNNING"
-PHASE_COMPLETE = "QUERY_COMPLETE"
+PHASE_READY_SUMMARY = "READY_FOR_SUMMARY"
+PHASE_SUMMARY_RUNNING = "SUMMARY_RUNNING"
+PHASE_SUMMARY_READY = "SUMMARY_READY"
+PHASE_DETAIL_AUTHORIZED = "DETAIL_AUTHORIZED"
+PHASE_DETAIL_RUNNING = "DETAIL_RUNNING"
+PHASE_DETAIL_READY = "DETAIL_READY"
 PHASE_FAILED = "QUERY_FAILED"
 
-BUSINESS_TOOLS = {
+SUMMARY_TOOLS = {
     "queryRptData",
+    "showErpDashboard",
+    "queryErpDashboardSummary",
+    "calculateErpSummaryMetric",
+}
+
+FILTER_TOOLS = {
+    "getErpDashboardFilterOptions",
+}
+
+DETAIL_TOOLS = {
     "queryContractFinanceData",
     "listHouseByCondition",
     "getHouseByHouseNo",
     "getSectionMarketBaseInfo",
     "getSectionMarketData",
     "listHotSection",
-    "queryErpDashboardData",
     "getErpMetricDetails",
 }
 
-BUSINESS_JSON_PATTERNS = [
+SUMMARY_JSON_PATTERNS = ["summary_*.json", "metric_*.json", "rpt_summary_*.json"]
+DETAIL_JSON_PATTERNS = [
     "prices.json",
-    "counts_*.json",
     "houses_*.json",
     "contracts_*.json",
-    "rpt_*.json",
     "finance_*.json",
     "payments_*.json",
     "performance_*.json",
-    "*_business.json",
+    "details_*.json",
+    "*_detail.json",
 ]
 
-BLOCK_MESSAGE = "客户尚未点击开始查询，禁止读取ERP业务数据。"
+SUMMARY_BLOCK = "客户尚未确认统计定义，禁止读取ERP汇总数据。"
+DETAIL_BLOCK = "客户尚未点击蓝色数字或查看明细，禁止读取ERP明细数据。"
 
 
 def now():
@@ -53,16 +60,17 @@ def now():
 def default_state(scenario="", query=""):
     return {
         "phase": PHASE_COLLECTING,
-        "options_complete": False,
-        "preview_shown": False,
-        "query_authorized": False,
-        "query_started": False,
         "scenario": scenario,
         "query": query,
-        "authorization_source": None,
+        "definition_confirmed": False,
+        "summary_ready": False,
+        "detail_authorized": False,
         "selected_options": {},
-        "business_tool_calls": [],
-        "business_json_writes": [],
+        "summary_tool_calls": [],
+        "filter_tool_calls": [],
+        "detail_tool_calls": [],
+        "summary_json_writes": [],
+        "detail_json_writes": [],
         "preview_writes": [],
         "events": [{"at": now(), "event": "init", "phase": PHASE_COLLECTING}],
     }
@@ -81,19 +89,37 @@ def write_state(path, state):
     p.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def can_read_business(state):
-    return state.get("phase") in {PHASE_AUTHORIZED, PHASE_RUNNING}
-
-
-def is_business_json(path, kind):
-    if kind == "business":
-        return True
-    name = Path(path).name
-    return any(fnmatch.fnmatch(name, pattern) for pattern in BUSINESS_JSON_PATTERNS)
-
-
 def print_json(data):
     print(json.dumps(data, ensure_ascii=False, indent=2))
+
+
+def query_class(tool, explicit=""):
+    if explicit:
+        return explicit
+    if tool in SUMMARY_TOOLS:
+        return "summary"
+    if tool in FILTER_TOOLS:
+        return "filter_options"
+    if tool in DETAIL_TOOLS:
+        return "detail"
+    return "other"
+
+
+def summary_allowed(state):
+    return state.get("phase") in {
+        PHASE_READY_SUMMARY,
+        PHASE_SUMMARY_RUNNING,
+        PHASE_SUMMARY_READY,
+        PHASE_DETAIL_READY,
+    }
+
+
+def filters_allowed(state):
+    return state.get("phase") in {PHASE_SUMMARY_READY, PHASE_DETAIL_READY}
+
+
+def detail_allowed(state):
+    return state.get("phase") in {PHASE_DETAIL_AUTHORIZED, PHASE_DETAIL_RUNNING}
 
 
 def cmd_init(args):
@@ -105,80 +131,138 @@ def cmd_init(args):
 def cmd_choose(args):
     state = read_state(args.state)
     state.setdefault("selected_options", {})[args.key] = args.value
-    state.setdefault("events", []).append({"at": now(), "event": "choose_option", "key": args.key, "phase": state.get("phase")})
+    state["phase"] = PHASE_COLLECTING
+    state.setdefault("events", []).append(
+        {"at": now(), "event": "choose_option", "key": args.key, "phase": PHASE_COLLECTING}
+    )
     write_state(args.state, state)
     print_json(state)
 
 
-def cmd_ready(args):
+def cmd_confirm_definition(args):
     state = read_state(args.state)
-    state["phase"] = PHASE_READY
-    state["options_complete"] = True
-    state.setdefault("events", []).append({"at": now(), "event": "ready_for_preview", "phase": PHASE_READY})
-    write_state(args.state, state)
-    print_json(state)
-
-
-def cmd_preview_shown(args):
-    state = read_state(args.state)
-    if state.get("phase") == PHASE_COMPLETE:
-        raise SystemExit("query is already complete")
-    state["phase"] = PHASE_PREVIEW
-    state["preview_shown"] = True
-    state.setdefault("events", []).append({"at": now(), "event": "preview_shown", "source": args.source, "phase": PHASE_PREVIEW})
-    write_state(args.state, state)
-    print_json(state)
-
-
-def cmd_authorize(args):
-    state = read_state(args.state)
-    if state.get("phase") not in {PHASE_PREVIEW, PHASE_AUTHORIZED, PHASE_RUNNING}:
-        raise SystemExit("query can only be authorized after the preview is shown")
-    state["phase"] = PHASE_AUTHORIZED
-    state["query_authorized"] = True
-    state["authorization_source"] = args.source
-    state.setdefault("events", []).append({"at": now(), "event": "query_authorized", "source": args.source, "phase": PHASE_AUTHORIZED})
+    if not state.get("selected_options") and not args.allow_defaults:
+        raise SystemExit("at least one explicit option or --allow-defaults is required")
+    state["phase"] = PHASE_READY_SUMMARY
+    state["definition_confirmed"] = True
+    state.setdefault("events", []).append(
+        {"at": now(), "event": "definition_confirmed", "source": args.source, "phase": PHASE_READY_SUMMARY}
+    )
     write_state(args.state, state)
     print_json(state)
 
 
 def cmd_guard(args):
     state = read_state(args.state)
-    business = args.business or args.tool in BUSINESS_TOOLS
-    if business and not can_read_business(state):
-        print(BLOCK_MESSAGE)
-        raise SystemExit(2)
-    if business:
-        state["phase"] = PHASE_RUNNING
-        state["query_started"] = True
-        state.setdefault("business_tool_calls", []).append({"at": now(), "tool": args.tool, "output": args.output})
-        state.setdefault("events", []).append({"at": now(), "event": "business_tool_allowed", "tool": args.tool, "phase": PHASE_RUNNING})
+    kind = query_class(args.tool, args.kind)
+    record = {"at": now(), "tool": args.tool, "output": args.output}
+
+    if kind == "summary":
+        if not summary_allowed(state):
+            print(SUMMARY_BLOCK)
+            raise SystemExit(2)
+        state["phase"] = PHASE_SUMMARY_RUNNING
+        state.setdefault("summary_tool_calls", []).append(record)
+    elif kind == "filter_options":
+        if not filters_allowed(state):
+            print(SUMMARY_BLOCK)
+            raise SystemExit(2)
+        state.setdefault("filter_tool_calls", []).append(record)
+    elif kind == "detail":
+        if not detail_allowed(state):
+            print(DETAIL_BLOCK)
+            raise SystemExit(2)
+        state["phase"] = PHASE_DETAIL_RUNNING
+        state.setdefault("detail_tool_calls", []).append(record)
     else:
-        state.setdefault("events", []).append({"at": now(), "event": "non_business_tool", "tool": args.tool, "phase": state.get("phase")})
+        state.setdefault("events", []).append(
+            {"at": now(), "event": "other_tool", "tool": args.tool, "phase": state.get("phase")}
+        )
+
+    if kind != "other":
+        state.setdefault("events", []).append(
+            {"at": now(), "event": f"{kind}_tool_allowed", "tool": args.tool, "phase": state.get("phase")}
+        )
     write_state(args.state, state)
     print_json(state)
+
+
+def cmd_summary_ready(args):
+    state = read_state(args.state)
+    if state.get("phase") not in {PHASE_SUMMARY_RUNNING, PHASE_SUMMARY_READY}:
+        raise SystemExit("summary can only complete after a summary query")
+    state["phase"] = PHASE_SUMMARY_READY
+    state["summary_ready"] = True
+    state.setdefault("events", []).append(
+        {"at": now(), "event": "summary_ready", "phase": PHASE_SUMMARY_READY}
+    )
+    write_state(args.state, state)
+    print_json(state)
+
+
+def cmd_authorize_detail(args):
+    state = read_state(args.state)
+    if state.get("phase") not in {PHASE_SUMMARY_READY, PHASE_DETAIL_READY}:
+        raise SystemExit("details can only be authorized after a summary is visible")
+    state["phase"] = PHASE_DETAIL_AUTHORIZED
+    state["detail_authorized"] = True
+    state["detail_metric_id"] = args.metric_id
+    state.setdefault("events", []).append(
+        {
+            "at": now(),
+            "event": "detail_authorized",
+            "source": args.source,
+            "metric_id": args.metric_id,
+            "phase": PHASE_DETAIL_AUTHORIZED,
+        }
+    )
+    write_state(args.state, state)
+    print_json(state)
+
+
+def cmd_detail_ready(args):
+    state = read_state(args.state)
+    if state.get("phase") not in {PHASE_DETAIL_RUNNING, PHASE_DETAIL_READY}:
+        raise SystemExit("detail can only complete after a detail query")
+    state["phase"] = PHASE_DETAIL_READY
+    state["detail_authorized"] = False
+    state.setdefault("events", []).append(
+        {"at": now(), "event": "detail_ready", "phase": PHASE_DETAIL_READY}
+    )
+    write_state(args.state, state)
+    print_json(state)
+
+
+def classify_json(path, kind):
+    if kind != "other":
+        return kind
+    name = Path(path).name
+    if any(fnmatch.fnmatch(name, pattern) for pattern in DETAIL_JSON_PATTERNS):
+        return "detail"
+    if any(fnmatch.fnmatch(name, pattern) for pattern in SUMMARY_JSON_PATTERNS):
+        return "summary"
+    return "other"
 
 
 def cmd_write_json(args):
     state = read_state(args.state)
-    business = is_business_json(args.path, args.kind)
-    if business and not can_read_business(state):
-        print(BLOCK_MESSAGE)
-        raise SystemExit(2)
-    record = {"at": now(), "path": args.path, "kind": "business" if business else args.kind}
-    if business:
-        state.setdefault("business_json_writes", []).append(record)
+    kind = classify_json(args.path, args.kind)
+    record = {"at": now(), "path": args.path, "kind": kind}
+    if kind == "summary":
+        if not summary_allowed(state):
+            print(SUMMARY_BLOCK)
+            raise SystemExit(2)
+        state.setdefault("summary_json_writes", []).append(record)
+    elif kind == "detail":
+        if not detail_allowed(state):
+            print(DETAIL_BLOCK)
+            raise SystemExit(2)
+        state.setdefault("detail_json_writes", []).append(record)
     else:
         state.setdefault("preview_writes", []).append(record)
-    state.setdefault("events", []).append({"at": now(), "event": "json_write_allowed", **record, "phase": state.get("phase")})
-    write_state(args.state, state)
-    print_json(state)
-
-
-def cmd_complete(args):
-    state = read_state(args.state)
-    state["phase"] = PHASE_COMPLETE
-    state.setdefault("events", []).append({"at": now(), "event": "complete", "phase": PHASE_COMPLETE})
+    state.setdefault("events", []).append(
+        {"at": now(), "event": "json_write_allowed", **record, "phase": state.get("phase")}
+    )
     write_state(args.state, state)
     print_json(state)
 
@@ -187,7 +271,9 @@ def cmd_fail(args):
     state = read_state(args.state)
     state["phase"] = PHASE_FAILED
     state["error"] = args.reason
-    state.setdefault("events", []).append({"at": now(), "event": "fail", "reason": args.reason, "phase": PHASE_FAILED})
+    state.setdefault("events", []).append(
+        {"at": now(), "event": "fail", "reason": args.reason, "phase": PHASE_FAILED}
+    )
     write_state(args.state, state)
     print_json(state)
 
@@ -197,7 +283,7 @@ def cmd_status(args):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Gate ERP business queries until customer confirmation.")
+    ap = argparse.ArgumentParser(description="Gate ERP summary and detail queries separately.")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p = sub.add_parser("init")
@@ -212,36 +298,38 @@ def main():
     p.add_argument("--value", required=True)
     p.set_defaults(func=cmd_choose)
 
-    p = sub.add_parser("ready")
-    p.add_argument("--state", required=True)
-    p.set_defaults(func=cmd_ready)
-
-    p = sub.add_parser("preview-shown")
+    p = sub.add_parser("confirm-definition")
     p.add_argument("--state", required=True)
     p.add_argument("--source", choices=["widget", "native_card", "chat", "html"], required=True)
-    p.set_defaults(func=cmd_preview_shown)
-
-    p = sub.add_parser("authorize")
-    p.add_argument("--state", required=True)
-    p.add_argument("--source", choices=["widget", "native_card", "chat"], required=True)
-    p.set_defaults(func=cmd_authorize)
+    p.add_argument("--allow-defaults", action="store_true")
+    p.set_defaults(func=cmd_confirm_definition)
 
     p = sub.add_parser("guard")
     p.add_argument("--state", required=True)
     p.add_argument("--tool", required=True)
     p.add_argument("--output", default="")
-    p.add_argument("--business", action="store_true")
+    p.add_argument("--kind", choices=["summary", "filter_options", "detail", "other"], default="")
     p.set_defaults(func=cmd_guard)
+
+    p = sub.add_parser("summary-ready")
+    p.add_argument("--state", required=True)
+    p.set_defaults(func=cmd_summary_ready)
+
+    p = sub.add_parser("authorize-detail")
+    p.add_argument("--state", required=True)
+    p.add_argument("--source", choices=["metric_click", "detail_button", "chat"], required=True)
+    p.add_argument("--metric-id", required=True)
+    p.set_defaults(func=cmd_authorize_detail)
+
+    p = sub.add_parser("detail-ready")
+    p.add_argument("--state", required=True)
+    p.set_defaults(func=cmd_detail_ready)
 
     p = sub.add_parser("write-json")
     p.add_argument("--state", required=True)
     p.add_argument("--path", required=True)
-    p.add_argument("--kind", choices=["preview", "business", "other"], default="other")
+    p.add_argument("--kind", choices=["preview", "summary", "detail", "other"], default="other")
     p.set_defaults(func=cmd_write_json)
-
-    p = sub.add_parser("complete")
-    p.add_argument("--state", required=True)
-    p.set_defaults(func=cmd_complete)
 
     p = sub.add_parser("fail")
     p.add_argument("--state", required=True)

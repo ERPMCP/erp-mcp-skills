@@ -22,6 +22,8 @@ def load_json(path: Path):
 
 def matches(query: str, scenario: dict) -> bool:
     text = query.lower().strip()
+    if any(word.lower() in text for word in scenario.get("forbidden_keywords", [])):
+        return False
     groups = scenario.get("required_keyword_groups", [])
     if groups:
         return all(any(word.lower() in text for word in group) for group in groups)

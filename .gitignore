@@ -10,6 +10,8 @@ __pycache__/
 .venv/
 venv/
 dist/
+!plugins/erp-mcp-requirement-analyst/mcp_servers/widget/dist/
+!plugins/erp-mcp-requirement-analyst/mcp_servers/widget/dist/index.html
 build/
 outputs/
 reports/

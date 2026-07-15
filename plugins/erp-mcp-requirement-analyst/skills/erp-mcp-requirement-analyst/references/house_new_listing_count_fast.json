@@ -1,0 +1,53 @@
+{
+  "goal": "查询所选月份的新上房源数量",
+  "storageKey": "erp_house_new_listing_count_selection_v2",
+  "base_filters": [
+    {
+      "id": "time",
+      "label": "统计月份",
+      "type": "select",
+      "options": ["上月", "本月", "自定义月份"]
+    }
+  ],
+  "questions": [
+    {
+      "id": "business_type",
+      "title": "要统计哪类房源？",
+      "required": true,
+      "options": [
+        {
+          "value": "sell",
+          "label": "买卖房源",
+          "description": "确认后立即查询买卖业务的新上房源汇总数量。",
+          "support": "系统有现成统计数字",
+          "recommended": true
+        },
+        {
+          "value": "rent",
+          "label": "租赁房源",
+          "description": "确认后立即查询租赁业务的新上房源汇总数量。",
+          "support": "系统有现成统计数字"
+        },
+        {
+          "value": "new_house",
+          "label": "新房业务",
+          "description": "确认后立即查询新房业务的新上房源汇总数量。",
+          "support": "系统有现成统计数字"
+        },
+        {
+          "value": "all",
+          "label": "全部业务",
+          "description": "查询系统支持的全部业务汇总；页面仍可继续切换业务类型。",
+          "support": "系统有现成统计数字"
+        }
+      ]
+    }
+  ],
+  "info_cards": [
+    {
+      "title": "确认后会发生什么",
+      "body": "系统只先读取一个汇总数字，并打开实时看板。不会在后台逐套读取房源。你可以在看板里切换月份、部门或人员；只有点击可查看明细的蓝色数字时，才会读取具体记录。",
+      "technical": "首个数字来自 ERP 行程统计的新增房源指标。该统计接口返回汇总行，不返回逐套房源。"
+    }
+  ]
+}

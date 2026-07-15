@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.0 - 2026-07-15
+
+- Return the fastest verified summary immediately after metric-definition confirmation, then attach the live MCP Apps Widget without waiting for full records.
+- Support direct aggregates and minimum-field derived summaries; only explicit metric clicks may start display-detail pagination.
+- Add `queryErpDashboardSummary`, `getErpDashboardFilterOptions`, and click-gated `getErpMetricDetails` tools to the local proxy.
+- Rebuild the Widget with the official MCP Apps `App` client and make ordinary HTML an honest static fallback.
+
 ## 2.2.7 - 2026-07-15
 
 - Replace the old confirmation gate with the explicit customer flow: `COLLECTING_OPTIONS -> READY_FOR_PREVIEW -> PREVIEW_SHOWN -> QUERY_AUTHORIZED -> QUERY_RUNNING -> QUERY_COMPLETE`.

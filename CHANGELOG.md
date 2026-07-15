@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.3.0 - 2026-07-15
+
+- Replace the empty-preview-first flow with definition confirmation followed by the fastest verified summary and the live Widget in the same result.
+- Prefer ready-made ERP aggregates, while allowing minimum-field derived calculations when no exact aggregate exists; derived calculation rows are never treated as display details.
+- Split summary refresh and detail retrieval into separate MCP tools. Widget filters return summary numbers only, and blue metric clicks fetch bounded detail pages.
+- Rebuild the Widget with the official MCP Apps `App` client and remove guessed `window.app`/`window.openai` bridges from runtime source and static reports.
+- Add deterministic summary/detail gates and tests for a 200-row aggregate result, zero initial detail rows, non-drillable historical totals, and click-only detail pagination.
+
 ## 2.2.7 - 2026-07-15
 
 - Replace the loose preview gate with an explicit six-phase state machine: `COLLECTING_OPTIONS`, `READY_FOR_PREVIEW`, `PREVIEW_SHOWN`, `QUERY_AUTHORIZED`, `QUERY_RUNNING`, `QUERY_COMPLETE`.

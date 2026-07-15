@@ -1,6 +1,6 @@
 {
   "goal": "查询上月新上房源数量与挂牌均价",
-  "storageKey": "erp_house_new_listing_fast_selection_v1",
+  "storageKey": "erp_house_new_listing_price_selection_v2",
   "base_filters": [
     {
       "id": "time",
@@ -18,96 +18,44 @@
         {
           "value": "sell",
           "label": "买卖房源",
-          "description": "查看买卖业务的新增房源数量和当前挂牌均价。",
-          "support": "系统可以直接查",
+          "description": "先返回买卖业务的新增数量，再按需计算当前新上房源的挂牌均价。",
+          "support": "系统可以查询",
           "recommended": true
         },
         {
           "value": "rent",
           "label": "租赁房源",
-          "description": "查看租赁业务的新增房源数量和当前挂牌均价。",
-          "support": "系统可以直接查"
-        },
-        {
-          "value": "both",
-          "label": "买卖和租赁都看",
-          "description": "分别展示两类房源，避免把不同计价单位混在一起。",
-          "support": "系统可以直接查"
-        }
-      ]
-    },
-    {
-      "id": "scope_mode",
-      "title": "先按什么范围查询？",
-      "required": true,
-      "options": [
-        {
-          "value": "choose_scope_first",
-          "label": "先选择部门或门店",
-          "description": "确认后先加载可选范围，再按你选中的范围查询；不会直接跑全公司数据。",
-          "support": "系统可以直接查",
-          "recommended": true
-        },
-        {
-          "value": "company",
-          "label": "全公司",
-          "description": "直接查询全公司的汇总数据；数据量较大时等待会更久。",
-          "support": "系统可以直接查"
+          "description": "先返回租赁业务的新增数量，再按需计算当前新上房源的挂牌均价。",
+          "support": "系统可以查询"
         }
       ]
     },
     {
       "id": "price_method",
-      "title": "挂牌均价（当前挂牌单价的平均值）用哪种方式看？",
+      "title": "挂牌均价想按哪种方法计算？",
       "required": true,
       "options": [
         {
-          "value": "both",
-          "label": "两种都展示（同时给出两套算法结果，方便对比）",
-          "description": "同时展示每套房等权和按面积计算整体均价，方便核对差异。",
-          "support": "系统可以直接查",
-          "recommended": true
-        },
-        {
           "value": "equal_weight",
-          "label": "每套房等权均价（每套房都算 1 套）",
-          "description": "每一套房对平均价的影响相同。",
-          "support": "系统可以直接查"
+          "label": "每套房都算 1 套",
+          "description": "每套房对平均价的影响相同，容易理解和核对。",
+          "support": "需要最少字段重新计算",
+          "recommended": true
         },
         {
           "value": "area_weighted",
-          "label": "按面积计算整体均价（大面积房源影响更大）",
-          "description": "大面积房源对最终平均价的影响更大。",
-          "support": "系统可以直接查"
-        }
-      ]
-    },
-    {
-      "id": "export_need",
-      "title": "最终页面是否需要导出表格？",
-      "required": false,
-      "options": [
-        {
-          "value": "summary_and_detail",
-          "label": "汇总和明细都导出",
-          "description": "只导出本次已经查询并校验过的结果，方便后续核对。",
-          "support": "可以直接做",
-          "recommended": true
-        },
-        {
-          "value": "no_export",
-          "label": "暂时不需要",
-          "description": "先看交互页面，后续仍可补充导出入口。",
-          "support": "可以直接做"
+          "label": "大面积房源影响更大",
+          "description": "按总价和总面积计算整体单价。",
+          "support": "需要最少字段重新计算"
         }
       ]
     }
   ],
   "info_cards": [
     {
-      "title": "本次数据如何统计",
-      "body": "新上房源数量按你选择的月份统计。挂牌均价根据现在仍被系统标记为“新上”的房源计算，所以它是当前参考价，不一定完全等于所选月份新录入房源的均价。系统支持的导出表里没有房源表，因此不会建议你导出房源表。",
-      "technical": "确认后才会检查 ERP 连接并读取真实数据。两个指标可能来自不同的查询结果，最终页面会清楚说明。"
+      "title": "先给数字，再按需读取",
+      "body": "新增房源数量按你选择的月份读取现成汇总。挂牌均价没有完全相同的月度汇总时，只读取计算所需的价格和面积字段，不会先生成逐套房源表。部门、人员、区域、商圈和小区等筛选放在实时看板里，不在第一轮继续追问。",
+      "technical": "两个指标可能来自不同统计方式，页面会分别说明。系统支持的导出表里没有房源表。"
     }
   ]
 }

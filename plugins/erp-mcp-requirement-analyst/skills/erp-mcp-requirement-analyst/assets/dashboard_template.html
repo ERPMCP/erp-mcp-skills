@@ -1,44 +1,106 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>@@REPORT_TITLE@@</title>
-<style>
-:root{--bg:#f5f5f7;--card:#fff;--text:#1d1d1f;--muted:#6e6e73;--line:#e5e5ea;--blue:#007aff;--soft:#eaf3ff;--orange:#ff9f0a;--red:#ff3b30;--green:#34c759;--shadow:0 14px 38px rgba(0,0,0,.06)}
-@media(prefers-color-scheme:dark){:root{--bg:#101014;--card:#1c1c1e;--text:#f5f5f7;--muted:#a1a1a6;--line:#38383a;--soft:rgba(10,132,255,.16);--shadow:0 18px 42px rgba(0,0,0,.35)}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}.wrap{max-width:1200px;margin:auto;padding:32px 18px 70px}h1{font-size:38px;margin:0 0 9px}.sub{color:var(--muted);line-height:1.6}.panel,.metric,.section{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow)}.panel{padding:20px;margin-top:22px}.filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap:12px;align-items:end}.field label{display:block;color:var(--muted);font-size:13px;margin-bottom:7px}.field select,.field input{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:transparent;color:var(--text);font:inherit}.btn{padding:12px 16px;border:0;border-radius:12px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer}.btn.secondary{background:var(--soft);color:var(--blue)}.notice{margin-top:13px;border-radius:13px;padding:12px;background:rgba(255,159,10,.12);color:var(--muted);line-height:1.55}.copybox{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--soft);color:var(--text);white-space:pre-wrap;word-break:break-word}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:15px}.metric{padding:20px}.label{color:var(--muted);font-size:14px}.value{font-size:34px;font-weight:780;margin-top:10px}.waiting{font-size:22px;color:var(--muted)}.link{color:var(--blue);text-decoration:underline;text-underline-offset:4px;cursor:pointer}.unit{font-size:15px;color:var(--muted);margin-left:4px}.formula{font-size:13px;color:var(--muted);line-height:1.5;margin-top:8px}.section{padding:22px;margin-top:15px}.section h2{margin:0 0 14px}.empty{padding:28px;text-align:center;border:1px dashed var(--line);border-radius:14px;color:var(--muted)}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}th{color:var(--muted);font-weight:700}.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:var(--soft);color:var(--blue);font-size:12px}.warn{background:rgba(255,159,10,.14);color:var(--orange)}.bad{background:rgba(255,59,48,.14);color:var(--red)}details{margin-top:14px;color:var(--muted)}.search{max-width:320px;margin:0 0 12px}.search input{width:100%;padding:11px;border:1px solid var(--line);border-radius:12px;background:transparent;color:var(--text)}@media(max-width:900px){.filters{grid-template-columns:1fr 1fr}.metrics{grid-template-columns:1fr}}@media(max-width:560px){.filters{grid-template-columns:1fr}h1{font-size:30px}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>@@REPORT_TITLE@@</title>
+  <style>
+    :root{--bg:#f5f5f7;--panel:#fff;--text:#1d1d1f;--muted:#6e6e73;--line:#d2d2d7;--blue:#0071e3;--blue-soft:#e8f2ff;--warn:#9a6700;--warn-bg:#fff8e6;--shadow:0 8px 24px rgba(0,0,0,.06)}
+    @media(prefers-color-scheme:dark){:root{--bg:#111113;--panel:#1c1c1e;--text:#f5f5f7;--muted:#a1a1a6;--line:#3a3a3c;--blue:#2997ff;--blue-soft:#132a42;--warn:#ffd479;--warn-bg:#332b18;--shadow:none}}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;letter-spacing:0}.wrap{max-width:1180px;margin:auto;padding:28px 18px 64px}h1{margin:0;font-size:36px;line-height:1.18}.sub{margin-top:10px;color:var(--muted);line-height:1.65}.panel,.metric,.section{background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}.panel,.section{padding:20px;margin-top:16px}.filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:12px;align-items:end}.field label{display:block;margin-bottom:6px;color:var(--muted);font-size:13px}.field select,.field input,.search input{width:100%;min-height:42px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--text);font:inherit}.btn{min-height:42px;padding:9px 14px;border:0;border-radius:8px;background:var(--blue);color:#fff;font:inherit;font-weight:650;cursor:pointer}.notice,.copybox{margin-top:12px;padding:12px;border-radius:8px;line-height:1.55}.notice{background:var(--warn-bg);color:var(--warn)}.copybox{border:1px solid var(--line);background:var(--blue-soft);white-space:pre-wrap;word-break:break-word}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:16px}.metric{padding:18px}.label{color:var(--muted);font-size:14px}.value{margin-top:9px;font-size:32px;font-weight:750}.waiting{font-size:20px;color:var(--muted)}.link{color:var(--blue);text-decoration:underline;text-underline-offset:4px;cursor:pointer}.unit{margin-left:4px;color:var(--muted);font-size:15px}.formula{margin-top:8px;color:var(--muted);font-size:13px;line-height:1.5}.section h2,.panel h2{margin:0 0 14px;font-size:20px}.empty{padding:24px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);text-align:center}.search{max-width:340px;margin-bottom:12px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--muted)}.pill{display:inline-block;margin-top:10px;padding:4px 8px;border-radius:8px;background:var(--blue-soft);color:var(--blue);font-size:12px}details{margin-top:14px;color:var(--muted)}@media(max-width:760px){.filters{grid-template-columns:1fr 1fr}.metrics{grid-template-columns:1fr}}@media(max-width:520px){.filters{grid-template-columns:1fr}h1{font-size:30px}}
+  </style>
 </head>
 <body>
 <main class="wrap">
-<h1 id="title"></h1><div class="sub" id="plainSummary"></div>
-<div class="notice" id="autoDefaultNotice" style="display:none"></div>
-<section class="panel"><h2 style="margin-top:0">筛选与查询</h2><div class="filters" id="filters"></div><div class="notice" id="filterNotice"></div><div class="copybox" id="copyStatus" style="display:none"></div></section>
-<div class="metrics" id="metrics"></div>
-<section class="section"><h2>结果说明</h2><div id="businessExplanation" class="sub"></div><details><summary>数据来源与技术说明</summary><div id="technical"></div></details></section>
-<section class="section"><h2>明细与汇总</h2><div class="search"><input id="search" placeholder="搜索当前明细"></div><div id="details"></div></section>
-<section class="section"><h2>限制与下一步</h2><div id="limits"></div></section>
+  <h1 id="title"></h1>
+  <div class="sub" id="plainSummary"></div>
+  <section class="panel">
+    <h2>筛选当前结果</h2>
+    <div class="filters" id="filters"></div>
+    <div class="notice" id="filterNotice"></div>
+    <div class="copybox" id="copyStatus" hidden></div>
+  </section>
+  <div class="metrics" id="metrics"></div>
+  <section class="section">
+    <h2>结果说明</h2>
+    <div id="businessExplanation" class="sub"></div>
+    <details><summary>数据来源与技术说明</summary><div id="technical"></div></details>
+  </section>
+  <section class="section">
+    <h2>已加载明细</h2>
+    <div class="search"><input id="search" placeholder="搜索当前已加载明细"></div>
+    <div id="details"></div>
+  </section>
+  <section class="section"><h2>限制与下一步</h2><div id="limits"></div></section>
 </main>
 <script id="report-data" type="application/json">@@REPORT_JSON@@</script>
 <script>
-let report;try{report=JSON.parse(document.getElementById("report-data").textContent)}catch(e){report={load_error:String(e),meta:{title:"加载失败"},metrics:[],datasets:{},limitations:["页面数据没有成功载入。"]}}
-const esc=v=>String(v??"").replace(/[&<>"']/g,s=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[s]));
-function metricValue(m){if(m.missing||m.value===undefined||m.value===null||m.value==="")return `<span class="waiting">等待查询</span>`;return `${esc(m.value)}<span class="unit">${esc(m.unit||"")}</span>`}
-function rowField(r,names){for(const n of names){if(r[n]!==undefined&&r[n]!==null)return String(r[n])}return""}function optionMatch(v,selected){if(!selected||selected==="全部"||selected==="不限")return true;return String(v||"").includes(selected)}function rows(data){if(!data||!data.length)return '<div class="empty">暂无可验证明细。</div>';const term=((document.getElementById("search")?.value||document.getElementById("filterKeyword")?.value||"")).toLowerCase();const district=selectedValue("filterDistrict");const zone=selectedValue("filterZone");const section=selectedValue("filterSection");const filtered=data.filter(r=>(!term||JSON.stringify(r).toLowerCase().includes(term))&&optionMatch(rowField(r,["district","区域","行政区","城区"]),district)&&optionMatch(rowField(r,["zone","商圈","板块"]),zone)&&optionMatch(rowField(r,["section","小区","楼盘","项目"]),section));if(!filtered.length)return '<div class="empty">没有匹配的明细。</div>';const cols=[...new Set(filtered.flatMap(o=>Object.keys(o)))].slice(0,18);return '<table><thead><tr>'+cols.map(c=>`<th>${esc(c)}</th>`).join('')+'</tr></thead><tbody>'+filtered.map(r=>'<tr>'+cols.map(c=>`<td>${esc(r[c])}</td>`).join('')+'</tr>').join('')+'</tbody></table>'}
-function selectedValue(id){const el=document.getElementById(id);return el?el.value:""}
-function realtimeBridge(){const candidates=[window.app,window.workbuddy,window.WorkBuddy,window.mcpApp];return candidates.find(x=>x&&typeof x.callServerTool==="function")||null}
-function realtimeConfig(){return report.realtime||{}}
-function canRealtimeQuery(){const rt=realtimeConfig();return Boolean(rt.enabled&&rt.query_tool&&realtimeBridge())}
-function buildQueryArgs(){return {title:report.meta?.title||"ERP 数据看板",time:selectedValue("filterTime"),scope:selectedValue("filterScope"),bizType:selectedValue("filterBiz"),district:selectedValue("filterDistrict"),zone:selectedValue("filterZone"),section:selectedValue("filterSection"),keyword:selectedValue("filterKeyword")||"",source:"erp-mcp-requirement-analyst-dashboard"}}
-function buildRequeryPrompt(){const args=buildQueryArgs();return `请用 erp MCP 按下面条件重新查询，并重新生成交互 HTML：\n报表：${args.title}\n时间：${args.time}\n查看范围：${args.scope}\n业务类型：${args.bizType}\n区域：${args.district||"不限"}\n商圈：${args.zone||"不限"}\n小区：${args.section||"不限"}\n关键词：${args.keyword||"无"}\n说明：这是从普通 HTML 结果页发回来的条件。当前页面没有实时查询通道，请由 WorkBuddy 在聊天里安全调用 ERP。`}
-async function copyRequeryPrompt(){const text=buildRequeryPrompt();const box=document.getElementById("copyStatus");try{await navigator.clipboard.writeText(text);box.textContent="已复制查询条件。请回到 WorkBuddy 聊天窗口粘贴发送，我会在那里重新调用 ERP 查询。"}catch(e){box.textContent="当前浏览器不允许自动复制。请手动复制下面这段文字，回到 WorkBuddy 聊天窗口发送：\n\n"+text}box.style.display="block"}
-function extractReportPayload(resp){return resp?.structuredContent?.report||resp?.structuredContent?.dashboard||resp?.structuredContent||resp?.report||resp}
-async function runRealtimeQuery(){const box=document.getElementById("copyStatus");const bridge=realtimeBridge();const rt=realtimeConfig();if(!bridge||!rt.query_tool){await copyRequeryPrompt();return}box.style.display="block";box.textContent="正在通过 WorkBuddy 安全读取 ERP 数据...";const args=buildQueryArgs();try{let resp;try{resp=await bridge.callServerTool({name:rt.query_tool,arguments:args})}catch(first){resp=await bridge.callServerTool(rt.query_tool,args)}const next=extractReportPayload(resp);if(!next||(!next.metrics&&!next.datasets)){throw new Error("查询返回内容不能直接渲染")}report={...report,...next,filters:{...(report.filters||{}),...(next.filters||{})},realtime:{...rt,...(next.realtime||{})}};box.textContent="已按当前条件更新页面。";init()}catch(e){box.textContent="页面实时查询没有成功。原因可能是当前页面不是 WorkBuddy 原生实时看板，或后台没有提供实时查询工具。\n\n你仍然可以复制下面的条件回到聊天里查询：\n\n"+buildRequeryPrompt()}}
-function canRealtimeDetail(){const rt=realtimeConfig();return Boolean(rt.enabled&&rt.detail_tool&&realtimeBridge())}async function runMetricDetail(metricId,label){const box=document.getElementById("copyStatus");const bridge=realtimeBridge();const rt=realtimeConfig();if(!bridge||!rt.detail_tool){box.style.display="block";box.textContent=`${label||"这个数字"}当前没有可直接跳转的明细。`;return}box.style.display="block";box.textContent="正在读取这个数字对应的明细...";try{const args={...buildQueryArgs(),metricId};let resp;try{resp=await bridge.callServerTool({name:rt.detail_tool,arguments:args})}catch(first){resp=await bridge.callServerTool(rt.detail_tool,args)}const next=extractReportPayload(resp);const datasetId=next?.dataset_id||metricId;if(next?.rows){report.datasets={...(report.datasets||{}),[datasetId]:next.rows};renderDetails(datasetId);document.getElementById("details").scrollIntoView({behavior:"smooth"});box.textContent="已打开这个数字对应的明细。"}else{throw new Error("没有返回明细行")}}catch(e){box.textContent="暂时没有取到这个数字对应的实时明细。请查看下方指标说明，或复制条件回到聊天里继续查询。"}}
-function renderFilters(){const root=document.getElementById("filters");const f=report.filters||{};const time=f.time_options||[report.meta?.date_range?.label||"当前时间"];const scopes=f.scope_options||["全公司"];const biz=f.biz_options||report.meta?.biz_types||["全部"];const districts=f.district_options||f.geo_options||["不限"];const zones=f.zone_options||["不限"];const sections=f.section_options||["不限"];const needsServer=Boolean(f.requires_requery);const live=needsServer&&canRealtimeQuery();const rtWanted=needsServer&&realtimeConfig().enabled;const previewMode=Boolean(report.meta?.provisional||report.meta?.preview_only||realtimeConfig().defer_initial_query);const buttonText=!needsServer?"应用当前页筛选":live?(previewMode?"确认后读取 ERP":"按当前条件查询"):"复制条件，回聊天查询";root.innerHTML=`<div class="field"><label>时间</label><select id="filterTime">${time.map(x=>`<option>${esc(x)}</option>`).join("")}</select></div><div class="field"><label>查看范围</label><select id="filterScope">${scopes.map(x=>`<option>${esc(x)}</option>`).join("")}</select></div><div class="field"><label>业务类型</label><select id="filterBiz">${biz.map(x=>`<option>${esc(x)}</option>`).join("")}</select></div><div class="field"><label>区域</label><select id="filterDistrict">${districts.map(x=>`<option>${esc(x)}</option>`).join("")}</select></div><div class="field"><label>商圈</label><select id="filterZone">${zones.map(x=>`<option>${esc(x)}</option>`).join("")}</select></div><div class="field"><label>小区</label><select id="filterSection">${sections.map(x=>`<option>${esc(x)}</option>`).join("")}</select></div><div class="field"><label>搜索</label><input id="filterKeyword" placeholder="人员、门店、小区或房源编号"></div><button class="btn" id="applyFilter">${buttonText}</button>`;document.getElementById("filterNotice").textContent=f.notice||(!needsServer?"当前页面只筛选已经加载的数据，不会重新连接 ERP 后台。":live?(previewMode?"这是查询预览页。点击确认后，我才会通过 WorkBuddy 安全读取 ERP 数据，页面会自动更新。":"这是 WorkBuddy 原生实时看板。点击查询后，会通过 WorkBuddy 安全读取 ERP，页面会自动更新。"):rtWanted?"当前打开的是普通 HTML 页面，不是实时看板，所以不能自己连接 ERP。需要重新读取 ERP 时，请复制条件回到聊天里继续查询。":"切换月份、层级或业务类型需要重新读取 ERP。当前页面没有实时查询通道，请复制条件回到 WorkBuddy 聊天里查询。");document.getElementById("applyFilter").onclick=()=>{if(!needsServer){renderDetails(currentDataset)}else if(live){runRealtimeQuery()}else{copyRequeryPrompt()}};["filterDistrict","filterZone","filterSection","filterKeyword"].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener(id==="filterKeyword"?"input":"change",()=>renderDetails(currentDataset))})}
-function renderMetrics(){const root=document.getElementById("metrics");root.innerHTML=(report.metrics||[]).map(m=>{const d=m.drilldown||{};const clickable=d.available&&(d.dataset_id||canRealtimeDetail());return `<article class="metric"><div class="label">${esc(m.label)}</div><div class="value ${clickable?'link':''}" data-dataset="${esc(d.dataset_id||'')}" data-metric="${esc(m.id||'')}" data-label="${esc(m.label||'')}">${metricValue(m)}</div><div class="formula">${esc(m.business_formula||m.formula||'')}</div><p>${clickable?'<span class="pill">可点击查看明细</span>':'<span class="pill warn">可查看说明</span>'}</p></article>`}).join("")||'<div class="empty">暂无可验证指标。</div>'}
-let currentDataset=null;function renderDetails(id){currentDataset=id||Object.keys(report.datasets||{})[0];document.getElementById("details").innerHTML=rows((report.datasets||{})[currentDataset]||[])}
-function init(){document.getElementById("title").textContent=report.meta?.title||"ERP 数据看板";document.getElementById("plainSummary").textContent=report.meta?.plain_summary||"这是根据已取得的数据生成的交互结果页。";const autoDefaulted=report.selection?.auto_defaulted||report.meta?.auto_defaulted;if(autoDefaulted){const n=document.getElementById("autoDefaultNotice");n.style.display="block";n.textContent="因为 5 分钟内没有收到确认，本次先按推荐方案生成。你仍然可以重新修改选择并生成新页面。"}renderFilters();renderMetrics();document.getElementById("businessExplanation").textContent=report.business_explanation||"结果会优先用普通中文说明，接口和字段细节放在下方技术说明里。";document.getElementById("technical").innerHTML=rows(report.queries||[]);document.getElementById("limits").innerHTML=rows([...(report.limitations||[]).map(x=>({类型:"限制",说明:x})),...(report.export_recommendations||[]).map(x=>({类型:"下一步",说明:typeof x==="string"?x:JSON.stringify(x)}))]);renderDetails();document.getElementById("metrics").addEventListener("click",e=>{const el=e.target.closest("[data-dataset]");if(!el)return;const id=el.getAttribute("data-dataset");const metricId=el.getAttribute("data-metric");const label=el.getAttribute("data-label");if(id){renderDetails(id);document.getElementById("details").scrollIntoView({behavior:"smooth"})}else if(metricId){runMetricDetail(metricId,label)}});document.getElementById("search").addEventListener("input",()=>renderDetails(currentDataset));}
+let report;
+try{report=JSON.parse(document.getElementById("report-data").textContent)}catch(error){report={meta:{title:"加载失败"},metrics:[],datasets:{},queries:[],limitations:["页面数据没有成功载入。"]}}
+const esc=(value)=>String(value??"").replace(/[&<>"']/g,(char)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[char]);
+const selected=(id)=>document.getElementById(id)?.value||"";
+let currentDataset="";
+
+function metricValue(metric){
+  if(metric.missing||metric.value===undefined||metric.value===null||metric.value==="")return '<span class="waiting">暂无可验证数据</span>';
+  return `${esc(metric.value)}<span class="unit">${esc(metric.unit||"")}</span>`;
+}
+
+function renderRows(data){
+  if(!Array.isArray(data)||!data.length)return '<div class="empty">当前页面没有加载明细。</div>';
+  const term=(document.getElementById("search")?.value||"").toLowerCase();
+  const filtered=data.filter((row)=>!term||JSON.stringify(row).toLowerCase().includes(term));
+  if(!filtered.length)return '<div class="empty">没有匹配的明细。</div>';
+  const columns=[...new Set(filtered.flatMap((row)=>Object.keys(row)))].slice(0,18);
+  return `<table><thead><tr>${columns.map((column)=>`<th>${esc(column)}</th>`).join("")}</tr></thead><tbody>${filtered.map((row)=>`<tr>${columns.map((column)=>`<td>${esc(row[column])}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+}
+
+function buildPrompt(){
+  return `请用 ERP MCP 按下面条件重新查询：\n报表：${report.meta?.title||"ERP 数据看板"}\n时间：${selected("filterTime")}\n查看范围：${selected("filterScope")}\n业务类型：${selected("filterBiz")}\n说明：这是普通静态结果页，实时筛选请打开插件提供的 MCP Apps Widget。`;
+}
+
+async function copyPrompt(){
+  const box=document.getElementById("copyStatus");
+  const prompt=buildPrompt();
+  try{await navigator.clipboard.writeText(prompt);box.textContent="查询条件已复制，请回到聊天窗口发送。"}catch(error){box.textContent=`请手动复制下面的查询条件：\n\n${prompt}`}
+  box.hidden=false;
+}
+
+function renderFilters(){
+  const filters=report.filters||{};
+  const time=filters.time_options||[report.meta?.date_range?.label||"当前时间"];
+  const scope=filters.scope_options||["全公司"];
+  const biz=filters.biz_options||report.meta?.biz_types||["全部"];
+  document.getElementById("filters").innerHTML=`<div class="field"><label>时间</label><select id="filterTime">${time.map((item)=>`<option>${esc(item)}</option>`).join("")}</select></div><div class="field"><label>查看范围</label><select id="filterScope">${scope.map((item)=>`<option>${esc(item)}</option>`).join("")}</select></div><div class="field"><label>业务类型</label><select id="filterBiz">${biz.map((item)=>`<option>${esc(item)}</option>`).join("")}</select></div><button class="btn" id="applyFilter">${filters.requires_requery?"复制条件重新查询":"应用当前页筛选"}</button>`;
+  document.getElementById("filterNotice").textContent=filters.requires_requery?"这是普通静态结果页，不能直接连接 ERP。需要实时筛选时，请使用插件提供的 MCP Apps Widget。":"这些筛选只作用于当前已加载的数据。";
+  document.getElementById("applyFilter").onclick=filters.requires_requery?copyPrompt:()=>renderDetails(currentDataset);
+}
+
+function renderMetrics(){
+  const html=(report.metrics||[]).map((metric)=>{
+    const drilldown=metric.drilldown||{};
+    const embedded=Boolean(drilldown.available&&drilldown.dataset_id&&(report.datasets||{})[drilldown.dataset_id]);
+    return `<article class="metric"><div class="label">${esc(metric.label)}</div><div class="value ${embedded?"link":""}" data-dataset="${esc(embedded?drilldown.dataset_id:"")}" data-reason="${esc(drilldown.reason||"这个数字当前没有同口径明细。")}">${metricValue(metric)}</div><div class="formula">${esc(metric.business_formula||metric.formula||"")}</div><span class="pill">${embedded?"可点击查看已加载明细":"点击查看说明"}</span></article>`;
+  }).join("");
+  document.getElementById("metrics").innerHTML=html||'<div class="empty">暂无可验证指标。</div>';
+}
+
+function renderDetails(datasetId){
+  currentDataset=datasetId||currentDataset||Object.keys(report.datasets||{})[0]||"";
+  document.getElementById("details").innerHTML=renderRows((report.datasets||{})[currentDataset]||[]);
+}
+
+function init(){
+  document.getElementById("title").textContent=report.meta?.title||"ERP 数据看板";
+  document.getElementById("plainSummary").textContent=report.meta?.plain_summary||"这是根据已取得的数据生成的结果页。";
+  renderFilters();renderMetrics();renderDetails();
+  document.getElementById("businessExplanation").textContent=report.business_explanation||"主页面只展示业务结果，技术信息放在折叠区。";
+  document.getElementById("technical").innerHTML=renderRows(report.queries||[]);
+  const notes=[...(report.limitations||[]).map((text)=>({类型:"限制",说明:text})),...(report.export_recommendations||[]).map((text)=>({类型:"下一步",说明:typeof text==="string"?text:JSON.stringify(text)}))];
+  document.getElementById("limits").innerHTML=renderRows(notes);
+  document.getElementById("metrics").addEventListener("click",(event)=>{const target=event.target.closest("[data-dataset]");if(!target)return;const id=target.dataset.dataset;if(id)renderDetails(id);else{const box=document.getElementById("copyStatus");box.textContent=target.dataset.reason;box.hidden=false}});
+  document.getElementById("search").addEventListener("input",()=>renderDetails(currentDataset));
+}
 init();
 </script>
 </body>

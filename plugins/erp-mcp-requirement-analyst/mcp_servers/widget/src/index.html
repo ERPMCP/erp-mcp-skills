@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>ERP 实时看板</title>
+  <style>/*__APP_CSS__*/</style>
+</head>
+<body>
+  <main class="shell">
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">ERP 实时看板</p>
+        <h1>新上房源数量</h1>
+        <p id="summaryText" class="lede">正在接收已确认的统计结果。</p>
+      </div>
+      <span id="connectionBadge" class="badge pending">正在连接</span>
+    </header>
+
+    <nav class="view-switch" aria-label="统计方式">
+      <button id="orgView" class="view-button active" type="button">按月份和组织看</button>
+      <button id="locationView" class="view-button" type="button">按当前位置看</button>
+    </nav>
+
+    <section class="filter-band" aria-label="查询条件">
+      <div id="organizationFilters" class="filter-grid">
+        <label class="field">统计月份<select id="month"><option value="上月">上月</option><option value="本月">本月</option></select></label>
+        <label class="field">业务类型<select id="businessType"><option value="sell">买卖房源</option><option value="rent">租赁房源</option><option value="new_house">新房业务</option><option value="all">全部业务</option></select></label>
+        <label class="field">部门或门店<select id="deptName"><option value="">全公司</option></select></label>
+        <label class="field">人员<select id="userName"><option value="">全部人员</option></select></label>
+      </div>
+      <div id="locationFilters" class="filter-grid hidden">
+        <label class="field">业务类型<select id="locationBusinessType"><option value="sell">买卖房源</option><option value="rent">租赁房源</option></select></label>
+        <label class="field">区域<input id="districtName" placeholder="输入区域名称"></label>
+        <label class="field">商圈<input id="zoneName" placeholder="输入商圈名称"></label>
+        <label class="field">小区<input id="sectionLike" placeholder="输入小区关键词"></label>
+      </div>
+      <div class="filter-actions">
+        <button id="refreshSummary" class="primary" type="button">刷新数字</button>
+        <span id="filterHint">只查询汇总数字，不读取逐套房源。</span>
+      </div>
+    </section>
+
+    <section class="result-layout">
+      <article class="metric-card" aria-live="polite">
+        <div class="metric-topline">
+          <span id="metricLabel">新上房源数量</span>
+          <span id="metricStatus" class="small-status">等候结果</span>
+        </div>
+        <button id="metricValue" class="metric-value" type="button">暂无可验证数据</button>
+        <p id="metricRule" class="metric-rule">数字返回后，这里会说明它是怎么统计的。</p>
+        <button id="metricHelp" class="text-action" type="button">查看指标说明</button>
+      </article>
+
+      <aside class="promise-panel">
+        <h2>页面会怎么查询</h2>
+        <ol>
+          <li><span>1</span>先返回一个汇总数字</li>
+          <li><span>2</span>换条件时仍只刷新数字</li>
+          <li><span>3</span>点击蓝色数字才读取明细</li>
+        </ol>
+      </aside>
+    </section>
+
+    <section id="detailSection" class="detail-section hidden" aria-live="polite">
+      <div class="section-head">
+        <div><p class="eyebrow">按需读取</p><h2>数字对应的明细</h2></div>
+        <button id="closeDetails" class="icon-button" type="button" aria-label="关闭明细" title="关闭明细">×</button>
+      </div>
+      <div id="detailMessage" class="empty-state">点击可查看明细的蓝色数字后，这里才会读取数据。</div>
+      <div id="tableWrap" class="table-wrap hidden"><table><thead id="detailHead"></thead><tbody id="detailBody"></tbody></table></div>
+      <button id="loadMore" class="secondary hidden" type="button">加载更多</button>
+    </section>
+
+    <section id="errorPanel" class="error-panel hidden" role="alert"></section>
+
+    <details class="technical">
+      <summary>数据来源与技术说明</summary>
+      <pre id="technicalText">等待查询结果。</pre>
+    </details>
+  </main>
+  <script>/*__APP_JS__*/</script>
+</body>
+</html>

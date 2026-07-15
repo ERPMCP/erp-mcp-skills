@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""Local MCP Apps proxy for ERP dashboard shells.
-
-The repository does not contain the remote ERP MCP server source. This local
-server gives WorkBuddy a real MCP Apps Widget entry point and defers all data
-reads until the user clicks the Widget query button. It never exposes ERP
-tokens to browser JavaScript.
-"""
+"""Local MCP Apps proxy: quick ERP summaries, lazy filters, click-only details."""
 
 import json
 import os
@@ -13,10 +7,18 @@ import sys
 import urllib.error
 import urllib.request
 from datetime import date, timedelta
+from pathlib import Path
 
 WIDGET_URI = "ui://erp/dashboard"
 SERVER_NAME = "erp-dashboard-proxy"
-SERVER_VERSION = "2.2.7"
+SERVER_VERSION = "2.3.0"
+PROTOCOL_VERSION = "2025-06-18"
+WIDGET_PATH = Path(__file__).resolve().parent / "widget" / "dist" / "index.html"
+
+SESSION_ID = ""
+SESSION_INITIALIZED = False
+REQUEST_ID = 0
+LAST_FILTER_OPTIONS = {"departments": [], "people": []}
 
 
 def read_message():
@@ -49,104 +51,86 @@ def error(msg, code, message):
     write_message({"jsonrpc": "2.0", "id": msg.get("id"), "error": {"code": code, "message": message}})
 
 
-def tool(name, description, schema, attach_widget=False):
-    data = {
-        "name": name,
-        "description": description,
-        "inputSchema": schema,
-    }
-    if attach_widget:
-        data["_meta"] = {"ui": {"resourceUri": WIDGET_URI}}
+def tool(name, description, schema, *, widget=False, visibility=None):
+    data = {"name": name, "description": description, "inputSchema": schema}
+    ui = {}
+    if widget:
+        ui["resourceUri"] = WIDGET_URI
+    if visibility:
+        ui["visibility"] = visibility
+    if ui:
+        data["_meta"] = {"ui": ui}
     return data
 
 
+FILTER_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "scenario": {"type": "string"},
+        "metricId": {
+            "type": "string",
+            "enum": ["monthlyNewListingCount", "currentNewListingCount"],
+            "default": "monthlyNewListingCount",
+        },
+        "month": {"type": "string", "default": "上月"},
+        "startDate": {"type": "string"},
+        "endDate": {"type": "string"},
+        "businessType": {"type": "string", "default": "sell"},
+        "deptName": {"type": "string"},
+        "userName": {"type": "string"},
+        "districtName": {"type": "string"},
+        "zoneName": {"type": "string"},
+        "sectionLike": {"type": "string"},
+    },
+}
+
+
 def tools_list():
-    obj = {"type": "object", "additionalProperties": True, "properties": {}}
+    detail_schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["metricId", "userAction"],
+        "properties": {
+            **FILTER_SCHEMA["properties"],
+            "userAction": {"type": "string", "enum": ["metric_click", "load_more"]},
+            "page": {"type": "integer", "minimum": 1, "default": 1},
+            "pageSize": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20},
+        },
+    }
     return [
         tool(
             "showErpDashboard",
-            "打开 ERP 实时查询 Widget 壳。只展示筛选项和确认按钮，不预取 ERP 数据。",
-            obj,
-            attach_widget=True,
+            "客户确认统计定义后使用。优先读取现成汇总；没有现成数字时执行最小字段计算，并打开实时看板。不会预取展示明细。",
+            FILTER_SCHEMA,
+            widget=True,
+            visibility=["model"],
         ),
         tool(
-            "queryErpDashboardData",
-            "在用户点击 Widget 查询按钮后，按当前条件读取 ERP 数据并返回结构化结果。",
-            obj,
+            "queryErpDashboardSummary",
+            "看板筛选按钮使用。刷新一个逻辑汇总结果；必要时可重新计算，但不返回数字背后的展示明细。",
+            FILTER_SCHEMA,
+            visibility=["app"],
+        ),
+        tool(
+            "getErpDashboardFilterOptions",
+            "返回最近一次汇总查询已带回的部门和人员名称，不额外拉取业务明细。",
+            {"type": "object", "additionalProperties": False, "properties": {}},
+            visibility=["app"],
         ),
         tool(
             "getErpMetricDetails",
-            "在用户点击数字后读取同口径明细。未配置上游 ERP 或缺少明细工具时返回限制说明。",
-            obj,
+            "仅在用户点击蓝色数字或加载更多时读取一页同口径明细。",
+            detail_schema,
+            visibility=["app"],
         ),
     ]
 
 
-def widget_html():
-    # Keep the Widget self-contained and token-free. The browser calls this MCP
-    # server through the WorkBuddy host bridge; credentials stay in this process.
-    return """<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ERP 实时查询</title>
-  <style>
-    :root{color-scheme:light dark;--blue:#007aff;--bg:#f5f5f7;--card:rgba(255,255,255,.86);--text:#1d1d1f;--muted:#6e6e73;--line:rgba(0,0,0,.08)}
-    @media(prefers-color-scheme:dark){:root{--bg:#101012;--card:rgba(35,35,39,.86);--text:#f5f5f7;--muted:#a1a1a6;--line:rgba(255,255,255,.12)}}
-    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-    main{max-width:1100px;margin:auto;padding:28px} h1{font-size:28px;margin:0 0 8px;letter-spacing:0} p{margin:0;color:var(--muted);line-height:1.65}
-    .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:18px 0}.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-    .card{border:1px solid var(--line);background:var(--card);border-radius:18px;padding:16px;box-shadow:0 14px 40px rgba(0,0,0,.08);backdrop-filter:blur(18px)}
-    label{display:block;color:var(--muted);font-size:12px;margin-bottom:8px} select,input{width:100%;height:38px;border:1px solid var(--line);border-radius:10px;background:transparent;color:var(--text);padding:0 10px}
-    .value{margin-top:10px;color:var(--blue);font-size:24px;font-weight:750}.actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}button{height:44px;border:0;border-radius:12px;background:var(--blue);color:white;padding:0 18px;font-weight:650;cursor:pointer}.secondary{background:transparent;color:var(--blue);border:1px solid rgba(0,122,255,.35)}
-    #status{margin-top:12px;color:var(--muted);min-height:24px}.detail{margin-top:14px;max-height:260px;overflow:auto;white-space:pre-wrap}
-    @media(max-width:820px){main{padding:18px}.grid,.metrics{grid-template-columns:1fr}}
-  </style>
-</head>
-<body>
-<main>
-  <section>
-    <h1>ERP 实时查询入口</h1>
-    <p>这个页面先让你确认条件。点击“开始查询”后，WorkBuddy 才会通过 MCP 读取 ERP 数据。</p>
-  </section>
-  <section class="grid">
-    <div class="card"><label>统计月份</label><select id="month"><option>上月</option><option>本月</option></select></div>
-    <div class="card"><label>查看范围</label><select id="scope"><option>先选择部门或门店</option><option>全公司</option></select></div>
-    <div class="card"><label>业务类型</label><select id="businessType"><option>买卖房源</option><option>租赁房源</option><option>买卖和租赁都看</option></select></div>
-    <div class="card"><label>挂牌均价</label><select id="priceMethod"><option>两种都展示（同时给出两套算法结果，方便对比）</option><option>每套房等权均价（每套房都算 1 套）</option><option>按面积计算整体均价（大面积房源影响更大）</option></select></div>
-  </section>
-  <section class="metrics">
-    <div class="card"><label>新上房源数量</label><div class="value" id="count">确认后查询</div></div>
-    <div class="card"><label>当前新上房源参考均价</label><div class="value" id="price">确认后查询</div></div>
-    <div class="card"><label>明细</label><div class="value" id="detailCount">确认后查询</div></div>
-  </section>
-  <section class="card" style="margin-top:12px"><p>新上房源数量按你选择的月份统计。挂牌均价根据现在仍被系统标记为“新上”的房源计算，所以这两个数字不一定来自同一批房源。系统支持的导出表里没有房源表，因此不会建议导出房源表。</p></section>
-  <div class="actions"><button id="run">开始查询</button><button class="secondary" id="copy">复制条件</button></div>
-  <div id="status">等待你点击开始查询。</div>
-  <div class="card detail" id="details">当前没有读取任何 ERP 业务数据。</div>
-</main>
-<script>
-function filters(){return{month:month.value,scope:scope.value,businessType:businessType.value,priceMethod:priceMethod.value,scenario:"house_new_listing_price"}}
-function appHost(){return window.app||window.openai}
-function show(data){
-  const m=(data&&data.metrics)||{};
-  count.textContent=m.newListingCount?.display||"暂无可验证数据";
-  price.textContent=m.referencePrice?.display||"暂无可验证数据";
-  detailCount.textContent=m.detailRows?.display||"暂无可验证数据";
-  details.textContent=data?.message||data?.limitation||"查询已返回，但没有可展示的明细。";
-}
-run.onclick=async()=>{
-  const host=appHost();
-  if(!host||typeof host.callServerTool!=="function"){status.textContent="当前没有检测到 WorkBuddy 实时查询桥。";return}
-  status.textContent="正在读取 ERP 数据...";
-  try{const res=await host.callServerTool({name:"queryErpDashboardData",arguments:filters()});show(res.structuredContent||res);status.textContent="查询完成。"}
-  catch(e){status.textContent="查询失败："+(e&&e.message?e.message:String(e));details.textContent="没有显示假数字。请检查 ERP 连接、权限或后台聚合工具。"}
-};
-copy.onclick=async()=>{const text=JSON.stringify(filters(),null,2);try{await navigator.clipboard.writeText(text);status.textContent="已复制当前条件。"}catch{details.textContent=text;status.textContent="请手动复制明细区内容。"}};
-</script>
-</body>
-</html>"""
+def load_widget_html():
+    if not WIDGET_PATH.exists():
+        return """<!doctype html><html lang=\"zh-CN\"><meta charset=\"utf-8\"><title>ERP 实时看板</title><body><main><h1>实时看板资源尚未构建</h1><p>请运行 Widget 构建脚本后重新加载插件。没有显示任何假数据。</p></main></body></html>"""
+    return WIDGET_PATH.read_text(encoding="utf-8")
 
 
 def resource_payload():
@@ -155,22 +139,34 @@ def resource_payload():
             {
                 "uri": WIDGET_URI,
                 "mimeType": "text/html;profile=mcp-app",
-                "text": widget_html(),
+                "text": load_widget_html(),
+                "_meta": {"ui": {"csp": {"connectDomains": [], "resourceDomains": []}}},
             }
         ]
     }
 
 
-def text_result(text, structured=None, attach_widget=False):
-    data = {"content": [{"type": "text", "text": text}], "structuredContent": structured or {}}
+def text_result(text, structured=None, *, attach_widget=False, is_error=False):
+    data = {
+        "content": [{"type": "text", "text": text}],
+        "structuredContent": structured or {},
+    }
     if attach_widget:
         data["_meta"] = {"ui": {"resourceUri": WIDGET_URI}}
+    if is_error:
+        data["isError"] = True
     return data
 
 
-def parse_month(label):
+def parse_month(args):
+    explicit_start = str(args.get("startDate") or "").strip()
+    explicit_end = str(args.get("endDate") or "").strip()
+    if explicit_start and explicit_end:
+        return explicit_start, explicit_end, f"{explicit_start} 至 {explicit_end}"
+
     today = date.today()
     first_this_month = today.replace(day=1)
+    label = str(args.get("month") or "上月")
     if label == "上月":
         end = first_this_month - timedelta(days=1)
         start = end.replace(day=1)
@@ -189,46 +185,92 @@ def upstream_url():
 
 def upstream_token():
     token = os.environ.get("ERP_MCP_TOKEN", "").strip()
-    if token.startswith("Bearer "):
-        token = token[7:].strip()
-    return token
+    return token[7:].strip() if token.startswith("Bearer ") else token
 
 
-def call_upstream_tool(name, arguments):
+def parse_http_payload(text):
+    text = text.strip()
+    if not text:
+        return {}
+    if text.startswith("data:") or "\ndata:" in text:
+        candidates = []
+        for line in text.splitlines():
+            if line.startswith("data:"):
+                raw = line[5:].strip()
+                if raw and raw != "[DONE]":
+                    candidates.append(raw)
+        for raw in reversed(candidates):
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+    return json.loads(text)
+
+
+def post_upstream(payload, *, timeout=30):
+    global SESSION_ID
     url = upstream_url()
     token = upstream_token()
     if not url or not token:
         raise RuntimeError("插件还没有配置 ERP MCP 地址或 Token。")
-    body = {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "tools/call",
-        "params": {"name": name, "arguments": arguments},
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+        "Authorization": f"Bearer {token}",
+        "MCP-Protocol-Version": PROTOCOL_VERSION,
     }
-    raw = json.dumps(body, ensure_ascii=False).encode("utf-8")
-    req = urllib.request.Request(
-        url,
-        data=raw,
-        method="POST",
-        headers={
-            "Content-Type": "application/json",
-            "Accept": "application/json, text/event-stream",
-            "Authorization": f"Bearer {token}",
-        },
-    )
+    if SESSION_ID:
+        headers["Mcp-Session-Id"] = SESSION_ID
+    raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(url, data=raw, method="POST", headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            text = resp.read().decode("utf-8", errors="replace")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            SESSION_ID = resp.headers.get("Mcp-Session-Id", SESSION_ID)
+            return parse_http_payload(resp.read().decode("utf-8", errors="replace"))
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"远程 ERP MCP 返回 {exc.code}: {detail[:500]}")
     except Exception as exc:
         raise RuntimeError(f"无法连接远程 ERP MCP: {exc}")
-    if text.startswith("data:"):
-        parts = [line[5:].strip() for line in text.splitlines() if line.startswith("data:")]
-        text = parts[-1] if parts else text
-    data = json.loads(text)
-    if "error" in data:
+
+
+def ensure_upstream_session():
+    global REQUEST_ID, SESSION_INITIALIZED
+    if SESSION_INITIALIZED:
+        return
+    REQUEST_ID += 1
+    init = post_upstream(
+        {
+            "jsonrpc": "2.0",
+            "id": REQUEST_ID,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": PROTOCOL_VERSION,
+                "capabilities": {},
+                "clientInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
+            },
+        }
+    )
+    if init.get("error"):
+        raise RuntimeError(str(init["error"]))
+    post_upstream({"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}}, timeout=10)
+    SESSION_INITIALIZED = True
+
+
+def call_upstream_tool(name, arguments, *, timeout=30):
+    global REQUEST_ID
+    ensure_upstream_session()
+    REQUEST_ID += 1
+    data = post_upstream(
+        {
+            "jsonrpc": "2.0",
+            "id": REQUEST_ID,
+            "method": "tools/call",
+            "params": {"name": name, "arguments": arguments},
+        },
+        timeout=timeout,
+    )
+    if data.get("error"):
         raise RuntimeError(str(data["error"]))
     return data.get("result", data)
 
@@ -237,7 +279,7 @@ def extract_jsonish(value):
     if isinstance(value, list):
         return value
     if isinstance(value, dict):
-        for key in ("structuredContent", "data", "result", "items", "rows"):
+        for key in ("structuredContent", "data", "result"):
             if key in value:
                 got = extract_jsonish(value[key])
                 if got is not None:
@@ -248,6 +290,33 @@ def extract_jsonish(value):
                 if isinstance(item, dict) and isinstance(item.get("text"), str):
                     try:
                         got = extract_jsonish(json.loads(item["text"]))
+                        if got is not None:
+                            return got
+                    except Exception:
+                        pass
+        for key in ("rows", "records", "list", "items"):
+            if isinstance(value.get(key), list):
+                return value[key]
+    return None
+
+
+def extract_total(value):
+    if isinstance(value, dict):
+        for key in ("total", "totalCount", "totalElements"):
+            number = to_number(value.get(key))
+            if number is not None:
+                return int(number)
+        for key in ("structuredContent", "data", "result", "page"):
+            if key in value:
+                got = extract_total(value[key])
+                if got is not None:
+                    return got
+        content = value.get("content")
+        if isinstance(content, list):
+            for item in content:
+                if isinstance(item, dict) and isinstance(item.get("text"), str):
+                    try:
+                        got = extract_total(json.loads(item["text"]))
                         if got is not None:
                             return got
                     except Exception:
@@ -267,82 +336,223 @@ def to_number(value):
         return None
 
 
-def display_money(value):
-    if value is None:
-        return "暂无可验证数据"
-    return f"{value:,.0f} 元/㎡"
+def business_values(value):
+    text = str(value or "sell").lower()
+    if text in {"rent", "租赁", "租房", "租赁房源"}:
+        return "租赁", "rent", "租赁房源"
+    if text in {"new_house", "new", "新房", "新房业务"}:
+        return "新房", "sell", "新房业务"
+    if text in {"all", "全部", "全部业务"}:
+        return "全部", "sell", "全部业务"
+    return "买卖", "sell", "买卖房源"
 
 
-def query_dashboard(args):
-    start, end, month_label = parse_month(args.get("month", "上月"))
-    biz_ui = args.get("businessType", "买卖房源")
-    if "租赁" in biz_ui:
-        rpt_biz = "租房"
-        house_biz = "rent"
-    else:
-        rpt_biz = "买卖"
-        house_biz = "sell"
+def clean_option(value):
+    text = str(value or "").strip()
+    return text if text and text not in {"null", "None", "-"} else ""
 
-    structured = {
-        "phase": "QUERY_RUNNING",
-        "filters": {**args, "startDate": start, "endDate": end, "monthLabel": month_label},
-        "metrics": {
-            "newListingCount": {"display": "暂无可验证数据"},
-            "referencePrice": {"display": "暂无可验证数据"},
-            "detailRows": {"display": "暂无可验证数据"},
-        },
-        "message": "",
-        "limitation": "",
+
+def monthly_summary(args):
+    global LAST_FILTER_OPTIONS
+    start, end, month_label = parse_month(args)
+    rpt_biz, _, business_label = business_values(args.get("businessType"))
+    query = {
+        "bizType": rpt_biz,
+        "startDate": start,
+        "endDate": end,
+        "indexName": "新增房源·套",
     }
-    try:
-        rpt = call_upstream_tool(
-            "queryRptData",
-            {"query": {"bizType": rpt_biz, "startDate": start, "endDate": end, "indexName": "新增房源·套"}},
-        )
-        rpt_rows = extract_jsonish(rpt) or []
-        values = [to_number(row.get("indexValue")) for row in rpt_rows if isinstance(row, dict)]
-        values = [v for v in values if v is not None]
-        if values:
-            structured["metrics"]["newListingCount"] = {"value": sum(values), "display": f"{sum(values):,.0f} 套"}
-    except Exception as exc:
-        structured["limitation"] = f"月度新增房源数量暂时没有查到：{exc}"
+    dept = clean_option(args.get("deptName"))
+    user = clean_option(args.get("userName"))
+    if dept:
+        query["deptName"] = dept
+    if user:
+        query["userName"] = user
 
-    try:
-        houses = call_upstream_tool("listHouseByCondition", {"bizType": house_biz, "current": 1, "size": 100, "isNew": "是"})
-        rows = extract_jsonish(houses) or []
-        if isinstance(rows, dict):
-            rows = rows.get("records") or rows.get("list") or rows.get("items") or []
-        prices = []
-        for row in rows:
-            if not isinstance(row, dict):
-                continue
-            for key in ("unitPrice", "unit_price", "挂牌单价", "单价"):
-                n = to_number(row.get(key))
-                if n is not None:
-                    prices.append(n)
-                    break
-        if prices:
-            avg = sum(prices) / len(prices)
-            structured["metrics"]["referencePrice"] = {"value": avg, "display": display_money(avg)}
-        structured["metrics"]["detailRows"] = {"value": len(rows), "display": f"{len(rows)} 条"}
-        structured["message"] = "查询已完成。新上房源数量按所选月份统计，挂牌均价按当前仍标记为新上的房源计算。"
-    except Exception as exc:
-        msg = f"当前新上房源参考均价暂时没有查到：{exc}"
-        structured["limitation"] = (structured.get("limitation") + "\n" + msg).strip()
-        structured["message"] = "没有显示假数字。远程 ERP MCP 可能需要补充稳定的聚合工具 queryErpDashboardData。"
+    raw = call_upstream_tool("queryRptData", {"query": query}, timeout=25)
+    rows = extract_jsonish(raw)
+    if not isinstance(rows, list):
+        raise RuntimeError("统计接口没有返回可识别的汇总行。")
+    values = [to_number(row.get("indexValue")) for row in rows if isinstance(row, dict)]
+    values = [value for value in values if value is not None]
+    if not values:
+        raise RuntimeError("统计接口没有返回可验证的新增房源数字。")
 
-    structured["phase"] = "QUERY_COMPLETE" if structured["message"] else "QUERY_FAILED"
-    return text_result(structured.get("message") or structured.get("limitation"), structured)
+    departments = sorted({clean_option(row.get("deptName")) for row in rows if isinstance(row, dict)})
+    people = sorted({clean_option(row.get("userName")) for row in rows if isinstance(row, dict)})
+    LAST_FILTER_OPTIONS = {
+        "departments": [item for item in departments if item][:200],
+        "people": [item for item in people if item][:300],
+    }
+    value = sum(values)
+    return {
+        "phase": "SUMMARY_READY",
+        "view": "organization",
+        "filters": {
+            "metricId": "monthlyNewListingCount",
+            "month": args.get("month", "上月"),
+            "startDate": start,
+            "endDate": end,
+            "monthLabel": month_label,
+            "businessType": args.get("businessType", "sell"),
+            "businessLabel": business_label,
+            "deptName": dept,
+            "userName": user,
+        },
+        "filterOptions": LAST_FILTER_OPTIONS,
+        "metrics": {
+            "primary": {
+                "id": "monthlyNewListingCount",
+                "label": f"{month_label}新上房源数量",
+                "value": value,
+                "display": f"{value:,.0f} 套",
+                "drilldown": {
+                    "available": False,
+                    "reason": "当前官方统计只返回汇总数字，没有同一月份、同一统计方式的逐套房源明细。",
+                },
+            }
+        },
+        "message": "核心数字已按官方统计读取完成。页面没有预取逐套房源。",
+        "plainRule": "这个数字按所选月份、业务类型和部门/人员统计。",
+        "technical": {
+            "source": "queryRptData",
+            "indexName": "新增房源·套",
+            "aggregateRows": len(rows),
+            "detailRowsFetched": 0,
+        },
+    }
+
+
+def current_listing_summary(args):
+    _, house_biz, business_label = business_values(args.get("businessType"))
+    if house_biz not in {"sell", "rent"}:
+        raise RuntimeError("当前新上房源位置筛选只支持买卖或租赁房源。")
+    query = {"bizType": house_biz, "current": 1, "size": 1, "isNew": "是"}
+    for key in ("districtName", "zoneName", "sectionLike"):
+        value = clean_option(args.get(key))
+        if value:
+            query[key] = value
+    raw = call_upstream_tool("listHouseByCondition", query, timeout=25)
+    total = extract_total(raw)
+    rows = extract_jsonish(raw)
+    if total is None and isinstance(rows, list) and not rows:
+        total = 0
+    if total is None:
+        raise RuntimeError("房源列表返回中没有可验证的总套数，不能用首屏条数冒充总数。")
+    filters = {key: args.get(key, "") for key in FILTER_SCHEMA["properties"]}
+    filters.update({"metricId": "currentNewListingCount", "businessLabel": business_label})
+    return {
+        "phase": "SUMMARY_READY",
+        "view": "location",
+        "filters": filters,
+        "filterOptions": LAST_FILTER_OPTIONS,
+        "metrics": {
+            "primary": {
+                "id": "currentNewListingCount",
+                "label": "当前新上房源数量",
+                "value": total,
+                "display": f"{total:,.0f} 套",
+                "drilldown": {"available": True, "reason": "点击后按当前条件读取第一页房源明细。"},
+            }
+        },
+        "message": "当前新上房源总数已查询完成，只读取了分页总数，没有预取完整列表。",
+        "plainRule": "这是目前仍被系统标记为“新上”的房源，不是所选月份的历史新增房源。",
+        "technical": {"source": "listHouseByCondition", "pageSize": 1, "detailRowsFetched": 0},
+    }
+
+
+def query_summary(args):
+    try:
+        if args.get("metricId") == "currentNewListingCount":
+            return text_result("当前新上房源汇总已返回。", current_listing_summary(args))
+        return text_result("月度新增房源汇总已返回。", monthly_summary(args))
+    except Exception as exc:
+        structured = {
+            "phase": "QUERY_FAILED",
+            "filters": args,
+            "metrics": {"primary": {"display": "查询失败", "drilldown": {"available": False}}},
+            "message": "暂时没有查到可验证的数字。",
+            "limitation": str(exc),
+        }
+        return text_result(structured["message"], structured, is_error=True)
+
+
+HOUSE_FIELD_ALIASES = {
+    "房源编号": ("houseNo", "house_no", "房源编号"),
+    "小区": ("sectionName", "section", "小区"),
+    "区域": ("districtName", "区域"),
+    "商圈": ("zoneName", "商圈"),
+    "总价或租金": ("price", "总价", "租金"),
+    "面积": ("area", "面积"),
+    "户型": ("rooms", "houseLayout", "户型"),
+    "楼层": ("floor", "楼层"),
+    "装修": ("decoration", "装修"),
+    "朝向": ("towards", "朝向"),
+}
+
+
+def safe_house_row(row):
+    cleaned = {}
+    for label, aliases in HOUSE_FIELD_ALIASES.items():
+        for key in aliases:
+            value = row.get(key)
+            if value not in (None, ""):
+                cleaned[label] = value
+                break
+    return cleaned
 
 
 def metric_details(args):
-    structured = {
-        "phase": "QUERY_FAILED",
-        "metricId": args.get("metricId", ""),
-        "message": "当前代理没有稳定的同口径明细工具，不能伪造明细。请让 ERP MCP 后台提供 getErpMetricDetails 或对应明细查询。",
-        "rows": [],
-    }
-    return text_result(structured["message"], structured)
+    if args.get("userAction") not in {"metric_click", "load_more"}:
+        return text_result(
+            "明细查询必须由用户点击数字或加载更多触发。",
+            {"phase": "QUERY_FAILED", "rows": []},
+            is_error=True,
+        )
+    if args.get("metricId") != "currentNewListingCount":
+        return text_result(
+            "这个月度汇总数字目前没有同一统计方式的逐套明细，不能伪造钻取。",
+            {"phase": "DETAIL_READY", "rows": [], "drilldownAvailable": False},
+        )
+    page = max(1, int(args.get("page") or 1))
+    size = min(50, max(1, int(args.get("pageSize") or 20)))
+    _, house_biz, _ = business_values(args.get("businessType"))
+    query = {"bizType": house_biz, "current": page, "size": size, "isNew": "是"}
+    for key in ("districtName", "zoneName", "sectionLike"):
+        value = clean_option(args.get(key))
+        if value:
+            query[key] = value
+    try:
+        raw = call_upstream_tool("listHouseByCondition", query, timeout=45)
+        rows = extract_jsonish(raw)
+        rows = rows if isinstance(rows, list) else []
+        total = extract_total(raw)
+        safe_rows = [safe_house_row(row) for row in rows if isinstance(row, dict)]
+        return text_result(
+            f"已读取第 {page} 页明细。",
+            {
+                "phase": "DETAIL_READY",
+                "metricId": "currentNewListingCount",
+                "page": page,
+                "pageSize": size,
+                "total": total,
+                "rows": safe_rows,
+                "hasMore": bool(total is not None and page * size < total),
+            },
+        )
+    except Exception as exc:
+        return text_result(
+            "明细查询失败，没有显示假数据。",
+            {"phase": "QUERY_FAILED", "rows": [], "limitation": str(exc)},
+            is_error=True,
+        )
+
+
+def filter_options():
+    return text_result(
+        "已返回最近一次汇总中的可选部门和人员。",
+        {"phase": "SUMMARY_READY", "filterOptions": LAST_FILTER_OPTIONS, "detailRowsFetched": 0},
+    )
 
 
 def handle_call(msg):
@@ -352,7 +562,7 @@ def handle_call(msg):
         result(
             msg,
             {
-                "protocolVersion": "2024-11-05",
+                "protocolVersion": PROTOCOL_VERSION,
                 "capabilities": {"tools": {}, "resources": {}},
                 "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
             },
@@ -360,19 +570,20 @@ def handle_call(msg):
     elif method == "tools/list":
         result(msg, {"tools": tools_list()})
     elif method == "resources/list":
-        result(msg, {"resources": [{"uri": WIDGET_URI, "name": "ERP 实时查询 Widget", "mimeType": "text/html;profile=mcp-app"}]})
+        result(msg, {"resources": [{"uri": WIDGET_URI, "name": "ERP 实时看板", "mimeType": "text/html;profile=mcp-app"}]})
     elif method == "resources/read":
-        if params.get("uri") != WIDGET_URI:
-            error(msg, -32004, "resource not found")
-        else:
-            result(msg, resource_payload())
+        result(msg, resource_payload()) if params.get("uri") == WIDGET_URI else error(msg, -32004, "resource not found")
     elif method == "tools/call":
         name = params.get("name")
         args = params.get("arguments") or {}
         if name == "showErpDashboard":
-            result(msg, text_result("已准备好 ERP 实时查询入口。", {"phase": "PREVIEW_SHOWN"}, attach_widget=True))
-        elif name == "queryErpDashboardData":
-            result(msg, query_dashboard(args))
+            summary = query_summary(args)
+            summary["_meta"] = {"ui": {"resourceUri": WIDGET_URI}}
+            result(msg, summary)
+        elif name == "queryErpDashboardSummary":
+            result(msg, query_summary(args))
+        elif name == "getErpDashboardFilterOptions":
+            result(msg, filter_options())
         elif name == "getErpMetricDetails":
             result(msg, metric_details(args))
         else:
