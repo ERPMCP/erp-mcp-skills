@@ -7,7 +7,7 @@ This repository publishes the `erp-mcp-requirement-analyst` plugin. It helps ERP
 ## Plugin
 
 - Name: `erp-mcp-requirement-analyst`
-- Version: `2.0.0`
+- Version: `2.1.0`
 - Supports: WorkBuddy / CodeBuddy style plugin marketplace and Codex plugin marketplace
 - Main skill path: `plugins/erp-mcp-requirement-analyst/skills/erp-mcp-requirement-analyst/SKILL.md`
 
@@ -63,3 +63,7 @@ When releasing a new version:
 5. Push to GitHub.
 
 Customers can then update from WorkBuddy or Codex plugin management without receiving a new ZIP manually.
+
+## ERP MCP Connection
+
+This plugin includes a non-secret ERP MCP configuration template. Customers still need to provide their own ERP MCP token in WorkBuddy/Codex connector settings. Never commit a real token to GitHub.

@@ -1,10 +1,21 @@
 {
   "name": "erp-mcp-requirement-analyst",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "ERP MCP需求澄清、真实数据查询与交互HTML看板助手",
   "skills": [
     "./skills/"
   ],
+  "mcpServers": "./.mcp.json",
+  "userConfig": {
+    "erp_mcp_url": {
+      "description": "ERP MCP 服务地址，默认 https://portal.fangline.cn/mcp",
+      "sensitive": false
+    },
+    "erp_mcp_token": {
+      "description": "ERP MCP 访问令牌，只填写 Token，不要填写 Bearer",
+      "sensitive": true
+    }
+  },
   "author": {
     "name": "ERP Skill Team"
   },

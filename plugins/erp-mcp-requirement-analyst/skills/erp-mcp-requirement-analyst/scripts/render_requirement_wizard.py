@@ -10,7 +10,7 @@ DEFAULT_CONFIG = {
     "goal": "ERP 数据需求",
     "storageKey": "erp_mcp_requirement_selection_v2",
     "base_filters": [
-        {"id": "time", "label": "查看时间", "type": "select", "options": ["上月", "本月", "自定义时间"]},
+        {"id": "time", "label": "统计月份", "type": "select", "options": ["上月", "本月", "自定义月份"]},
         {"id": "scope", "label": "查看范围", "type": "select", "options": ["全公司"]},
         {"id": "biz", "label": "业务类型", "type": "select", "options": ["全部", "买卖", "租赁", "新房"]}
     ],
@@ -21,7 +21,7 @@ DEFAULT_CONFIG = {
             "required": True,
             "options": [
                 {"value": "contract_date", "label": "按签约日期", "description": "适合看某段时间签了哪些合同。", "support": "系统可以直接查", "recommended": True},
-                {"value": "erp_report", "label": "按 ERP 月度统计", "description": "适合先看系统报表里的官方汇总数。", "support": "系统能查，但统计方式需要说明"},
+                {"value": "erp_report", "label": "按系统报表统计", "description": "适合先看系统报表里的汇总数。", "support": "系统能查，但统计方式需要说明"},
                 {"value": "finish_time", "label": "按结单日期", "description": "适合看某段时间完成结单的合同。", "support": "系统能查，但要核对结果"},
                 {"value": "create_time", "label": "按录入时间", "description": "适合看房源或客户是什么时候录入的。", "support": "需要补充合同表", "export_required": True, "notes": "通常需要合同信息导出。"}
             ]
@@ -50,11 +50,48 @@ DEFAULT_CONFIG = {
     ],
     "info_cards": [
         {
-            "title": "房源类数据的说明",
-            "body": "上月新增房源的总套数可以按月份统计；但系统目前不能拉出一份“上月新录入房源的完整名单”。当前房源列表里的“新上”只是房源现在仍处于新上状态，所以用这些房源计算出来的均价只能作为当前新上房源的参考。系统没有房源表导出功能，因此不会建议你导出房源表。"
+            "title": "本次数据如何统计",
+            "body": "新上房源数量按你选择的月份统计。挂牌均价根据现在仍被系统标记为“新上”的房源计算，所以它是当前参考价，不一定完全等于所选月份新录入房源的均价。系统支持的导出表里没有房源表，因此不会建议你导出房源表。",
+            "technical": "数量通常来自系统月度新增房源统计；均价通常来自当前房源列表中新上房源的挂牌单价。两者不一定对应同一批房源。"
         }
     ]
 }
+
+
+BAD_TIME_WORDS = ("时间口径", "日期口径")
+BAD_TIME_OPTION_PARTS = ("数量=上月", "均价=本月", "queryRptData", "isNew", "unitPrice")
+
+
+def normalize_customer_language(config):
+    """Remove internal jargon from the visible questionnaire."""
+    normalized_filters = []
+    for f in config.get("base_filters", []):
+        label = f.get("label", "")
+        options = f.get("options", [])
+        joined = " ".join(str(x) for x in options)
+        is_bad_time_filter = label in BAD_TIME_WORDS or any(part in joined for part in BAD_TIME_OPTION_PARTS)
+        if is_bad_time_filter:
+            config.setdefault("info_cards", []).append({
+                "title": "本次数据如何统计",
+                "body": "新上房源数量按你选择的月份统计。挂牌均价根据现在仍被系统标记为“新上”的房源计算，所以它是当前参考价，不一定完全等于所选月份新录入房源的均价。",
+                "technical": "原页面里的“数量=上月；均价=本月”属于内部说明，不应该作为客户选择项展示。"
+            })
+            continue
+        if label in ("查看时间", "查询时间"):
+            f["label"] = "统计月份"
+        f["options"] = [str(o).replace("自定义时间", "自定义月份") for o in options]
+        normalized_filters.append(f)
+    config["base_filters"] = normalized_filters
+
+    for q in config.get("questions", []):
+        if q.get("title") in BAD_TIME_WORDS:
+            q["title"] = "这个数字按哪个日期统计？"
+        for opt in q.get("options", []):
+            for part in BAD_TIME_OPTION_PARTS:
+                if part in opt.get("label", ""):
+                    opt["label"] = "按系统当前可查询的方式统计"
+                    opt["description"] = "系统当前只有这一种可行统计方式，具体说明会显示在说明卡里。"
+    return config
 
 
 def prune_questions(config):
@@ -78,7 +115,8 @@ def main():
     args = ap.parse_args()
     config = DEFAULT_CONFIG
     if args.config:
-        config = json.loads(Path(args.config).read_text(encoding="utf-8"))
+        config = json.loads(Path(args.config).read_text(encoding="utf-8-sig"))
+    config = normalize_customer_language(config)
     config = prune_questions(config)
     html = TEMPLATE.read_text(encoding="utf-8").replace("@@WIZARD_JSON@@", json.dumps(config, ensure_ascii=False))
     Path(args.out).write_text(html, encoding="utf-8")

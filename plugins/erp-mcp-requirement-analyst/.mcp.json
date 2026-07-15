@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "erp": {
+      "url": "${user_config.erp_mcp_url:-https://portal.fangline.cn/mcp}",
+      "headers": {
+        "Authorization": "Bearer ${user_config.erp_mcp_token}"
+      },
+      "disabled": false
+    }
+  }
+}
