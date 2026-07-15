@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.3 - 2026-07-15
+
+- Make requirement confirmation pages look like modal popups instead of ordinary pages.
+- Require the agent to open confirmation/preview pages when possible and stop until the customer answers.
+- Strengthen WorkBuddy flow rules so required questions and layout previews cannot be bypassed by continued background querying.
+- Add a 5-minute no-confirmation fallback that uses recommended choices and requires a visible final-page notice.
+
 ## 2.1.2 - 2026-07-15
 
 - Expand terse average-price options such as `两种都展示`, `每套等权`, and `面积加权` with customer-friendly explanations.

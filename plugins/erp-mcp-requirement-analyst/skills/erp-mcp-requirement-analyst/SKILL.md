@@ -24,6 +24,10 @@ Use this skill for customer-facing ERP MCP reporting. Customers are often not te
 - Keep all customer-facing progress and reasoning in Chinese. Do not write English status text such as `I'll start by...` or `I've reviewed...` to customers.
 - Do not improve speed by skipping necessary questions. Faster flow means avoiding premature large queries, duplicate schema probing, raw JSON chatter, and unnecessary file rewrites; it does not mean lowering the quality of requirement confirmation.
 - When a request will take a long time after the customer confirms choices, first provide a lightweight page layout preview with no fake data. Ask the customer to confirm the layout before running full data pulls and writing the final dashboard.
+- Once a required-question card, requirement wizard, or layout preview is shown, stop immediately and wait for the customer's answer. Do not continue querying MCP, writing JSON files, or building the final dashboard until the customer sends the selected choices.
+- After generating a requirement wizard or layout preview HTML, try to open it immediately using the host's artifact/open-file mechanism. If automatic opening is unavailable, say plainly: `我已经生成确认页，但当前环境不能自动弹出，请点击下面链接打开。`
+- Prefer a native WorkBuddy clickable question card for the first required question when WorkBuddy supports it. If native cards are too limited or multiple choices need to be confirmed together, generate the HTML wizard and open it.
+- Confirmation wait time is 5 minutes. If there is still no customer confirmation after 5 minutes and the host supports continuing, use the recommended choices. The final result must clearly say: `因为 5 分钟内没有收到确认，本次先按推荐方案生成。你仍然可以重新修改选择并生成新页面。`
 - Give customers a clear optional entry for result export: `最终页面是否需要导出表格？` This is a page-output preference, not a substitute for metric definition questions.
 - Never recommend exporting a house/property table. The supported export list has no house export. Do not suggest `房源表`, `新上房源表`, `房源明细导出`, `在售房源导出`, `在租房源导出`, or any invented house export.
 - Do not call MCP-visible people `公司总人数` or `全员`. Headcount/opening-rate denominators require personnel export, or must be labeled `系统能看到的业务人员`.
@@ -87,10 +91,10 @@ If a field is needed but only a house export would solve it, do not recommend ex
 1. Run the ERP MCP preflight above.
 2. Classify the request: statistics, contract detail, finance, performance allocation, staff/org, house listing, section market, field support, dashboard.
 3. Extract known date range, business type, metric, role attribution, scope, denominator, and output requirement.
-4. Ask every critical question that changes the number. Do not remove required questions for speed. If only one valid method remains, show an explanation card instead of a pointless choice.
+4. Ask every critical question that changes the number before full data pulls. Do not remove required questions for speed. If only one valid method remains, show an explanation card instead of a pointless choice.
 5. Add a non-required export preference question or page control: whether the final page should include table export, and whether to export summary, detail, or both.
-6. Prefer a clickable Apple-style HTML questionnaire when critical choices remain.
-7. For common or long-running reports, render a lightweight layout preview before full querying. The preview must show structure and planned filters only, with `等待查询`, never fake data.
+6. Prefer a clickable Apple-style HTML questionnaire when critical choices remain. After rendering it, try to open it and then stop.
+7. For common or long-running reports, render a lightweight layout preview before full querying. The preview must show structure and planned filters only, with `等待查询`, never fake data. After rendering it, try to open it and then stop.
 8. Inspect live MCP schema first when available; otherwise use references and field matrix.
 9. Plan data sources, dedupe keys, join keys, privacy masking, and export gaps.
 10. Query real MCP data. Split date ranges over 31 days where required.
@@ -147,13 +151,21 @@ Speed rules:
 - Do not skip mandatory metric-definition questions.
 - Before the first customer confirmation, do only ERP connection checks, intent classification, and lightweight schema lookup. Do not run full report queries just to decide what to ask.
 - Use known scenario templates for common requests, but still ask required choices.
-- If final generation may take more than a few minutes, show a lightweight layout preview first and ask the customer to confirm the page structure.
+- If final generation may take more than a few minutes, show a lightweight layout preview first and ask the customer to confirm the page structure. Stop after showing it.
 - After confirmation, query in batches, keep raw JSON out of chat, and write intermediate files silently.
 - Prefer a quick verified preview of core numbers before spending time on polished final HTML when the data volume is large.
 
 ## First-Round Requirement HTML
 
 Generate a requirement page only when user intent is vague and decisions affect the result. Include compact base filters, 2-5 critical questions at most, full-card clickable options, support status in plain Chinese, allowed export requirements, copy/JSON fallback, and a summary that does not cover options.
+
+After generating this page, the next action must be one of:
+
+1. open the page automatically and say `我已弹出确认页，请先选择后继续`;
+2. if automatic opening is not possible, provide one obvious link and say `请先打开确认页选择，选择后把结果发回对话`;
+3. if using WorkBuddy native cards, present the card and wait.
+
+Do not continue with report queries or final HTML generation before receiving the choices.
 
 Do not create dropdowns for choices that are not real choices. For example, for `上月新上房源数量 + 挂牌均价`, do not show a dropdown like `数量=上月(2026-06);均价=本月(2026-07)`. Instead show:
 
@@ -166,6 +178,12 @@ Progress text should count only questions that truly require customer confirmati
 ## Final HTML Dashboard Rules
 
 Every final result HTML must include title, generated time, current filters, metric cards, detail/empty state, limitations, next steps, collapsed data source, clickable blue numbers only for exact drilldown, and metric explanation for non-drillable values.
+
+If the requirement-selection payload contains `auto_defaulted: true`, show a visible notice near the top:
+
+`因为 5 分钟内没有收到确认，本次先按推荐方案生成。你仍然可以重新修改选择并生成新页面。`
+
+Also include a `重新选择条件` action that opens or links back to the requirement wizard when available.
 
 Separate `应用筛选` for loaded data from `按此条件重新查询` for conditions requiring a new MCP call. Never show controls that do not work.
 
