@@ -1,0 +1,35 @@
+{
+  "name": "erp-mcp-requirement-analyst",
+  "version": "2.0.0",
+  "description": "ERP MCP demand clarification, export guidance, and interactive HTML dashboards for ERP customers.",
+  "author": {
+    "name": "ERP Skill Team"
+  },
+  "license": "Proprietary",
+  "keywords": [
+    "erp",
+    "mcp",
+    "dashboard",
+    "workbuddy",
+    "codex"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "ERP MCP 需求助手",
+    "shortDescription": "澄清ERP统计口径并生成交互HTML看板",
+    "longDescription": "Clarifies vague ERP MCP reporting requests, routes to real ERP MCP data or allowed system exports, forbids fabricated data and unsupported house-export suggestions, and renders plain-Chinese interactive HTML dashboards.",
+    "developerName": "ERP Skill Team",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Data Analysis",
+      "Reporting"
+    ],
+    "defaultPrompt": [
+      "用ERP MCP需求助手澄清口径并生成交互HTML看板。",
+      "查询ERP数据前先确认统计口径和可用字段。",
+      "生成带来源说明和明细钻取的ERP数据报告。"
+    ],
+    "brandColor": "#007AFF"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "fangline-erp-skills",
+  "interface": {
+    "displayName": "Fangline ERP Skills"
+  },
+  "plugins": [
+    {
+      "name": "erp-mcp-requirement-analyst",
+      "source": {
+        "source": "local",
+        "path": "./plugins/erp-mcp-requirement-analyst"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

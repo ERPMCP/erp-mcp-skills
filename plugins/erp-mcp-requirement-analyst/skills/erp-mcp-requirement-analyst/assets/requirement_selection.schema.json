@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ERP MCP Requirement Selection",
+  "type": "object",
+  "required": ["version", "selected_at", "goal", "answers"],
+  "properties": {
+    "version": {"type": "string"},
+    "selected_at": {"type": "string"},
+    "goal": {"type": "string"},
+    "answers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["label", "value", "support"],
+        "properties": {
+          "label": {"type": "string"},
+          "value": {"type": "string"},
+          "support": {"type": "string"},
+          "export_required": {"type": "boolean"},
+          "notes": {"type": "string"}
+        }
+      }
+    },
+    "enhancements": {"type": "array", "items": {"type": "string"}},
+    "human_summary": {"type": "string"},
+    "export_recommendations": {"type": "array", "items": {"type": "string"}}
+  }
+}

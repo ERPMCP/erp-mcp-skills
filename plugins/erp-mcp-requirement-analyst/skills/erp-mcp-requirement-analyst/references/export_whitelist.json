@@ -1,0 +1,53 @@
+{
+  "version": "2026-07-14-v2",
+  "rule": "Only the following system exports may be recommended. A standalone house/property export is not supported and must never be suggested.",
+  "allowed": [
+    {
+      "table": "付款明细导出",
+      "sheets": [
+        "默认工作表"
+      ]
+    },
+    {
+      "table": "合同信息导出",
+      "sheets": [
+        "合同信息"
+      ]
+    },
+    {
+      "table": "实收明细导出",
+      "sheets": [
+        "默认工作表"
+      ]
+    },
+    {
+      "table": "业绩明细导出",
+      "sheets": [
+        "应收应付",
+        "业绩分配"
+      ]
+    },
+    {
+      "table": "人员信息导出",
+      "sheets": [
+        "汇总",
+        "人员列表"
+      ]
+    }
+  ],
+  "forbidden_recommendations": [
+    "房源表",
+    "房源导出表",
+    "房源明细导出",
+    "在售房源导出",
+    "新上房源导出",
+    "带新上时间的房源表",
+    "房源历史表"
+  ],
+  "house_data_fallbacks": [
+    "Use queryRptData for official monthly counts where supported.",
+    "Use listHouseByCondition/getHouseByHouseNo for current listing snapshots.",
+    "Clearly separate historical monthly statistics from current listing snapshots.",
+    "If a required historical house field is unavailable, explain the limitation in plain Chinese and recommend a product/API enhancement; do not recommend a house export."
+  ]
+}

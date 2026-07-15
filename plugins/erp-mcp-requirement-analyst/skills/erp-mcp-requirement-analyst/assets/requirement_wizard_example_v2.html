@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ERP 数据需求确认</title>
+<style>
+:root{color-scheme:light dark;--bg:#f5f5f7;--card:rgba(255,255,255,.86);--text:#1d1d1f;--muted:#6e6e73;--line:rgba(0,0,0,.09);--blue:#007aff;--blueSoft:rgba(0,122,255,.1);--green:#34c759;--orange:#ff9f0a;--shadow:0 18px 50px rgba(0,0,0,.08)}
+@media(prefers-color-scheme:dark){:root{--bg:#000;--card:rgba(28,28,30,.9);--text:#f5f5f7;--muted:#a1a1a6;--line:rgba(255,255,255,.13);--blueSoft:rgba(10,132,255,.18);--shadow:0 18px 50px rgba(0,0,0,.4)}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","PingFang SC","Microsoft YaHei",sans-serif}.wrap{max-width:1180px;margin:auto;padding:38px 20px 70px}.hero{display:flex;justify-content:space-between;gap:20px;align-items:end}.hero h1{font-size:clamp(32px,5vw,50px);line-height:1.05;margin:8px 0}.hero p{color:var(--muted);line-height:1.7;margin:0;max-width:760px}.progress{min-width:170px;color:var(--muted)}.bar{height:7px;background:var(--line);border-radius:999px;margin-top:9px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--blue);transition:.2s}.base,.card,.summary{background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);backdrop-filter:blur(22px)}.base{margin-top:25px;padding:22px}.base h2,.summary h2{margin:0 0 14px;font-size:20px}.filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.field label{display:block;font-size:13px;color:var(--muted);margin:0 0 7px}.field select,.field input{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:13px;background:transparent;color:var(--text);font:inherit}.layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;margin-top:18px;align-items:start}.questions{display:grid;gap:16px}.card{padding:22px}.qtitle{font-size:19px;font-weight:740;margin-bottom:14px}.options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.option{border:1px solid var(--line);border-radius:16px;padding:15px;cursor:pointer;transition:.18s;outline:none}.option:hover{transform:translateY(-1px);border-color:rgba(0,122,255,.45)}.option:focus-visible{box-shadow:0 0 0 4px rgba(0,122,255,.2)}.option.selected{border-color:var(--blue);background:var(--blueSoft);box-shadow:0 0 0 1px var(--blue) inset}.otop{display:flex;justify-content:space-between;gap:10px}.olabel{font-weight:720}.check{color:var(--blue);font-weight:800}.desc{font-size:13px;color:var(--muted);line-height:1.55;margin-top:8px}.tag{display:inline-block;font-size:11px;padding:4px 8px;border-radius:999px;margin-top:9px;background:var(--line);color:var(--muted)}.tag.ok{background:rgba(52,199,89,.14);color:var(--green)}.tag.warn{background:rgba(255,159,10,.15);color:var(--orange)}.summary{padding:20px;position:sticky;top:16px}.summaryList{display:grid;gap:9px;color:var(--muted);font-size:14px}.actions{display:grid;gap:9px;margin-top:18px}button{border:0;border-radius:13px;padding:12px 15px;font:inherit;font-weight:700;cursor:pointer}.primary{background:var(--blue);color:white}.secondary{background:var(--line);color:var(--text)}button:disabled{opacity:.4;cursor:not-allowed}.status{font-size:13px;line-height:1.5;color:var(--muted);margin-top:10px}.info{margin-top:15px;padding:13px;border-radius:14px;background:rgba(255,159,10,.1);font-size:13px;line-height:1.6;color:var(--muted)}details{margin-top:14px;color:var(--muted);font-size:13px}textarea{width:100%;min-height:90px;margin-top:10px;display:none;border:1px solid var(--line);border-radius:12px;padding:10px;background:transparent;color:var(--text)}
+@media(max-width:860px){.hero{display:block}.progress{margin-top:17px}.layout{grid-template-columns:1fr}.summary{position:static}.filters{grid-template-columns:1fr 1fr}.options{grid-template-columns:1fr}}
+@media(max-width:560px){.filters{grid-template-columns:1fr}.wrap{padding:24px 13px 55px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<section class="hero">
+<div><div style="color:var(--blue);font-size:13px;font-weight:750">ERP 数据助手</div><h1>先确认几个会影响结果的条件</h1><p>直接点击即可。系统查不到的内容会明确告诉你，不会编造数据，也不会建议导出系统并不支持的房源表。</p></div>
+<div class="progress"><span id="progressText">已完成 0/2 项</span><div class="bar"><i id="bar"></i></div></div>
+</section>
+
+<section class="base">
+<h2>基础筛选</h2>
+<div class="filters">
+<div class="field"><label>查看时间</label><select id="time"><option>上月</option><option>本月</option><option>自定义时间</option></select></div>
+<div class="field"><label>查看范围</label><select id="scope"><option>全公司</option><option disabled>读取组织架构后显示片区、门店等</option></select></div>
+<div class="field"><label>业务类型</label><select id="biz"><option>全部</option><option>买卖</option><option>租赁</option><option>新房</option></select></div>
+</div>
+</section>
+
+<div class="layout">
+<div class="questions">
+<section class="card">
+<div class="qtitle">开单按谁来算？</div>
+<div class="options" data-question="owner">
+<div class="option" tabindex="0" data-value="签约人"><div class="otop"><span class="olabel">按签约人</span><span class="check"></span></div><div class="desc">合同由谁签约，开单就记在谁名下。</div><span class="tag ok">系统可以直接查</span></div>
+<div class="option" tabindex="0" data-value="业绩分配人"><div class="otop"><span class="olabel">按业绩分配人</span><span class="check"></span></div><div class="desc">一份合同可能分给多人，更适合看实际业绩归属。</div><span class="tag ok">系统可以直接查</span></div>
+<div class="option" tabindex="0" data-value="房源方经纪人"><div class="otop"><span class="olabel">按房源方经纪人</span><span class="check"></span></div><div class="desc">开单记在负责房源的一方。</div><span class="tag ok">系统可以直接查</span></div>
+<div class="option" tabindex="0" data-value="客源方经纪人"><div class="otop"><span class="olabel">按客源方经纪人</span><span class="check"></span></div><div class="desc">开单记在负责客户的一方。</div><span class="tag ok">系统可以直接查</span></div>
+</div>
+</section>
+
+<section class="card">
+<div class="qtitle">人员总数按谁来算？</div>
+<div class="options" data-question="people">
+<div class="option" tabindex="0" data-value="期末仍在职人员"><div class="otop"><span class="olabel">统计期结束时仍在职</span><span class="check"></span></div><div class="desc">适合看这个月结束时团队的人均表现。</div><span class="tag warn">需要补充人员表</span></div>
+<div class="option" tabindex="0" data-value="统计期内曾在职人员"><div class="otop"><span class="olabel">这个月内曾经在职</span><span class="check"></span></div><div class="desc">月中入职或离职的人也会进入人员总数。</div><span class="tag warn">需要补充人员表</span></div>
+<div class="option" tabindex="0" data-value="系统能看到的业务人员"><div class="otop"><span class="olabel">先按系统能看到的人快速预览</span><span class="check"></span></div><div class="desc">速度快，但不能叫作“公司全员”，没有业务记录的人可能看不到。</div><span class="tag">可以先预览</span></div>
+</div>
+</section>
+
+<section class="card">
+<div class="qtitle">系统当前只能这样处理的内容</div>
+<div class="info" style="margin-top:0">
+上月新增房源的总套数可以按月份统计；但系统目前不能拉出“上月新录入房源”的完整房源名单。当前房源列表里的“新上”只表示现在仍处于新上状态，所以用它计算的均价只能作为参考。这里不再让你选择“导出房源表”，因为系统没有这个导出功能。
+</div>
+<details><summary>查看数据来源与技术说明</summary><p>月度数量可由 ERP 月度指标查询；当前房源参考列表由房源查询接口取得。两者不是同一批数据，必须分别展示。</p></details>
+</section>
+</div>
+
+<aside class="summary">
+<h2>本次选择</h2>
+<div id="summary" class="summaryList">请完成 2 个必选项。</div>
+<div class="actions">
+<button class="secondary" id="recommend">采用推荐设置</button>
+<button class="secondary" id="reset">清空重选</button>
+<button class="primary" id="confirm" disabled>复制选择结果</button>
+</div>
+<div id="status" class="status"></div>
+<textarea id="fallback" readonly></textarea>
+</aside>
+</div>
+</main>
+<script>
+const state={owner:null,people:null};
+const optionEls=[...document.querySelectorAll(".option")];
+function select(el){
+  const group=el.closest("[data-question]");
+  const key=group.dataset.question;
+  state[key]=el.dataset.value;
+  [...group.querySelectorAll(".option")].forEach(x=>{
+    const yes=x===el;x.classList.toggle("selected",yes);x.setAttribute("aria-checked",String(yes));x.querySelector(".check").textContent=yes?"✓":"";
+  });
+  update();
+}
+optionEls.forEach(el=>{
+  el.setAttribute("role","radio");el.setAttribute("aria-checked","false");
+  el.addEventListener("click",()=>select(el));
+  el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();select(el)}});
+});
+function resultText(){
+  return `查看时间=${document.getElementById("time").value}；查看范围=${document.getElementById("scope").value}；业务类型=${document.getElementById("biz").value}；开单归属=${state.owner}；人员范围=${state.people}`;
+}
+function update(){
+  const done=Object.values(state).filter(Boolean).length;
+  document.getElementById("progressText").textContent=`已完成 ${done}/2 项`;
+  document.getElementById("bar").style.width=`${done/2*100}%`;
+  document.getElementById("confirm").disabled=done!==2;
+  document.getElementById("summary").innerHTML=done===0?"请完成 2 个必选项。":
+    [`时间：${document.getElementById("time").value}`,`范围：${document.getElementById("scope").value}`,`业务：${document.getElementById("biz").value}`,state.owner&&`开单：${state.owner}`,state.people&&`人员：${state.people}`].filter(Boolean).map(x=>`<div>✓ ${x}</div>`).join("");
+}
+["time","scope","biz"].forEach(id=>document.getElementById(id).addEventListener("change",update));
+document.getElementById("recommend").onclick=()=>{
+  select(document.querySelector('[data-question="owner"] .option[data-value="签约人"]'));
+  select(document.querySelector('[data-question="people"] .option[data-value="期末仍在职人员"]'));
+};
+document.getElementById("reset").onclick=()=>{
+  state.owner=null;state.people=null;optionEls.forEach(x=>{x.classList.remove("selected");x.querySelector(".check").textContent=""});document.getElementById("status").textContent="";update();
+};
+document.getElementById("confirm").onclick=async()=>{
+  const text=resultText();
+  try{await navigator.clipboard.writeText(text);document.getElementById("status").textContent="已复制。请返回 WorkBuddy 粘贴发送。";}
+  catch(e){const t=document.getElementById("fallback");t.style.display="block";t.value=text;t.select();document.getElementById("status").textContent="无法自动复制，请复制下方文字。";}
+};
+update();
+</script>
+</body>
+</html>

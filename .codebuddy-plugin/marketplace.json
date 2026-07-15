@@ -1,0 +1,14 @@
+{
+  "name": "fangline-erp-skills",
+  "owner": {
+    "name": "ERP Skill Team"
+  },
+  "plugins": [
+    {
+      "name": "erp-mcp-requirement-analyst",
+      "source": "./plugins/erp-mcp-requirement-analyst",
+      "description": "ERP MCP需求澄清、真实数据查询与交互HTML看板助手",
+      "version": "2.0.0"
+    }
+  ]
+}

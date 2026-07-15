@@ -1,0 +1,12 @@
+{
+  "name": "erp-mcp-requirement-analyst",
+  "version": "2.0.0",
+  "description": "ERP MCP需求澄清、真实数据查询与交互HTML看板助手",
+  "skills": [
+    "./skills/"
+  ],
+  "author": {
+    "name": "ERP Skill Team"
+  },
+  "license": "Proprietary"
+}
