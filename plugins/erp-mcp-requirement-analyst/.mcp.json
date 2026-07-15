@@ -1,5 +1,16 @@
 {
   "mcpServers": {
+    "erp_dashboard_proxy": {
+      "command": "python",
+      "args": [
+        "./mcp_servers/erp_dashboard_proxy.py"
+      ],
+      "env": {
+        "ERP_MCP_URL": "${user_config.erp_mcp_url:-https://portal.fangline.cn/mcp}",
+        "ERP_MCP_TOKEN": "${user_config.erp_mcp_token}"
+      },
+      "disabled": false
+    },
     "erp": {
       "url": "${user_config.erp_mcp_url:-https://portal.fangline.cn/mcp}",
       "headers": {

@@ -7,6 +7,12 @@ from pathlib import Path
 FORBIDDEN_EXPORT = ["房源表", "房源导出", "房源明细导出", "新上房源导出", "在售房源导出", "在租房源导出", "房源历史表"]
 TECH_TERMS_MAIN = ["queryRptData", "listHouseByCondition", "queryContractFinanceData", "isNew=", "unitPrice", "bizType", "schema", "JSON lineage", "MCP直接支持", "MCP支持但口径需说明"]
 FORBIDDEN_SECRET_MARKERS = ["Authorization", "Bearer ", "erp_mcp_token", "access_token", "api_key"]
+DANGEROUS_DOM_PATTERNS = [
+    (r'getElementById\([^)]*\)\s*\.querySelector\(["\']\.value["\']\)', "dangerous metric selector: target element may already be .value"),
+    (r'\b\w+\s*\.querySelector\(["\']\.value["\']\)\s*\.', "dangerous chained .value selector without an explicit child existence check"),
+    (r'querySelector\(["\']\.value["\']\)\s*\.innerHTML', "unsafe .value update without null check"),
+    (r'querySelector\(["\']\.value["\']\)\s*\.textContent', "unsafe .value update without null check"),
+]
 
 
 def main():
@@ -56,6 +62,9 @@ def main():
             problems.append(f"possible secret/auth marker found in HTML: {marker}")
     if "按此条件重新查询" in text and "callServerTool" not in text:
         problems.append("requery wording found without realtime bridge support")
+    for pattern, message in DANGEROUS_DOM_PATTERNS:
+        if re.search(pattern, text):
+            problems.append(message)
     if problems:
         print("\n".join(problems))
         raise SystemExit(1)

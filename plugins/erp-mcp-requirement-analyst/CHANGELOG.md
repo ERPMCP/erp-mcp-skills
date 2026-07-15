@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.2.6 - 2026-07-15
+
+- Add bundled local `erp_dashboard_proxy` MCP server for WorkBuddy MCP Apps Widget shells when this repository does not contain the remote ERP MCP server source.
+- Provide real Widget tools: `showErpDashboard`, `queryErpDashboardData`, and `getErpMetricDetails`.
+- Add deterministic query gating so business MCP calls and raw business JSON writes fail before customer confirmation.
+- Add static and realtime Widget shell rendering, with ordinary HTML fallback clearly labeled as copy-back-to-chat rather than realtime ERP querying.
+- Strengthen dashboard validation against fragile DOM selectors that break metric updates after filter changes.
+
 ## 2.2.4 - 2026-07-15
 
 - Prefer bundled capability references, TSV field matrix, export whitelist, and scenario templates for the first requirement page; inspect live MCP only when local references are insufficient or after confirmation.

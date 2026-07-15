@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.2.6 - 2026-07-15
+
+- Add a local `erp_dashboard_proxy` MCP server so WorkBuddy can open an MCP Apps Widget shell instead of a dead `file:///` page when realtime querying is requested.
+- Add `showErpDashboard`, `queryErpDashboardData`, and `getErpMetricDetails` proxy tools. The Widget calls these tools only after the customer clicks `开始查询`.
+- Add a deterministic query gate that blocks ERP business tools and raw business JSON writes before customer confirmation.
+- Add a Widget shell renderer with separate realtime Widget mode and honest static fallback mode.
+- Add tests proving zero ERP business calls and zero raw business JSON writes before confirmation, and proving that static HTML does not pretend to call MCP.
+
 ## 2.2.5 - 2026-07-15
 
 - Add a deterministic fast scenario router for the first customer-visible screen.

@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+PLUGIN_ROOT = ROOT.parents[1]
 PY = sys.executable
 
 
@@ -21,6 +22,35 @@ def run(args, expect_ok=True):
     if p.stdout:
         print(p.stdout.strip())
     return p
+
+
+def mcp_roundtrip(script, messages):
+    p = subprocess.Popen([PY, str(script)], cwd=PLUGIN_ROOT, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        replies = []
+        for msg in messages:
+            raw = json.dumps(msg, ensure_ascii=False).encode("utf-8")
+            p.stdin.write(f"Content-Length: {len(raw)}\r\n\r\n".encode("ascii") + raw)
+            p.stdin.flush()
+            headers = {}
+            while True:
+                line = p.stdout.readline()
+                if line in (b"\r\n", b"\n"):
+                    break
+                if not line:
+                    raise SystemExit("proxy closed before response")
+                key, value = line.decode("ascii").split(":", 1)
+                headers[key.lower()] = value.strip()
+            length = int(headers.get("content-length", "0"))
+            replies.append(json.loads(p.stdout.read(length).decode("utf-8")))
+        return replies
+    finally:
+        try:
+            p.stdin.close()
+        except Exception:
+            pass
+        p.terminate()
+        p.wait(timeout=5)
 
 
 def main():
@@ -57,6 +87,53 @@ def main():
         run([ROOT / "scripts" / "render_requirement_wizard.py", "--config", route_wizard_config, "--out", wizard])
         run([ROOT / "scripts" / "validate_requirement_wizard.py", wizard])
 
+        state = td / "state.json"
+        run([ROOT / "scripts" / "query_gate.py", "init", "--state", state, "--scenario", "house_new_listing_price", "--query", "查询上月新上房源数量和挂牌均价"])
+        gate_data = json.loads(state.read_text(encoding="utf-8"))
+        if gate_data.get("phase") != "PREVIEW_PENDING" or gate_data.get("business_tool_calls"):
+            raise SystemExit("query gate did not start in PREVIEW_PENDING")
+        blocked_tool = run([ROOT / "scripts" / "query_gate.py", "guard", "--state", state, "--tool", "queryRptData"], expect_ok=False)
+        if "客户尚未确认预览" not in blocked_tool.stdout:
+            raise SystemExit("query gate did not block business tool before confirmation")
+        blocked_json = run([ROOT / "scripts" / "query_gate.py", "write-json", "--state", state, "--path", str(td / "prices.json"), "--kind", "business"], expect_ok=False)
+        if "客户尚未确认预览" not in blocked_json.stdout:
+            raise SystemExit("query gate did not block business JSON before confirmation")
+        widget_html = td / "widget.html"
+        static_html = td / "static.html"
+        run([ROOT / "scripts" / "render_widget_shell.py", "--config", route_wizard_config, "--out", widget_html, "--mode", "widget", "--state-id", str(state)])
+        run([ROOT / "scripts" / "render_widget_shell.py", "--config", route_wizard_config, "--out", static_html, "--mode", "static", "--state-id", str(state)])
+        widget_text = widget_html.read_text(encoding="utf-8")
+        static_text = static_html.read_text(encoding="utf-8")
+        if "确认后查询" not in widget_text or "queryErpDashboardData" not in widget_text or "callServerTool" not in widget_text:
+            raise SystemExit("widget shell is not a realtime query entrance")
+        if "确认后查询" not in static_text or "callServerTool" in static_text or "queryErpDashboardData" in static_text:
+            raise SystemExit("static shell pretends to be realtime")
+        run([ROOT / "scripts" / "query_gate.py", "confirm", "--state", state, "--source", "widget"])
+        run([ROOT / "scripts" / "query_gate.py", "guard", "--state", state, "--tool", "queryErpDashboardData"])
+        gate_data = json.loads(state.read_text(encoding="utf-8"))
+        if gate_data.get("phase") != "QUERY_RUNNING" or not gate_data.get("business_tool_calls"):
+            raise SystemExit("query gate did not allow business query after confirmation")
+        run([ROOT / "scripts" / "query_gate.py", "write-json", "--state", state, "--path", str(td / "counts_all.json"), "--kind", "business"])
+        gate_data = json.loads(state.read_text(encoding="utf-8"))
+        if not gate_data.get("business_json_writes"):
+            raise SystemExit("query gate did not log business JSON after confirmation")
+
+        proxy_script = PLUGIN_ROOT / "mcp_servers" / "erp_dashboard_proxy.py"
+        replies = mcp_roundtrip(proxy_script, [
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+            {"jsonrpc": "2.0", "id": 3, "method": "resources/read", "params": {"uri": "ui://erp/dashboard"}},
+            {"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "showErpDashboard", "arguments": {}}},
+        ])
+        tool_names = {t["name"] for t in replies[1]["result"]["tools"]}
+        if {"showErpDashboard", "queryErpDashboardData", "getErpMetricDetails"} - tool_names:
+            raise SystemExit("proxy MCP tools missing")
+        widget_resource = replies[2]["result"]["contents"][0]
+        if widget_resource.get("mimeType") != "text/html;profile=mcp-app" or "callServerTool" not in widget_resource.get("text", ""):
+            raise SystemExit("proxy MCP widget resource is not a realtime MCP Apps widget")
+        if replies[3]["result"].get("_meta", {}).get("ui", {}).get("resourceUri") != "ui://erp/dashboard":
+            raise SystemExit("showErpDashboard did not attach widget resource")
+
         report = {
             "meta": {"title": "结构测试", "generated_at": "2026-07-14T00:00:00+08:00", "date_range": {"start": "2026-07-01", "end": "2026-07-31", "label": "2026年7月"}, "date_basis": "签约日期", "biz_types": ["全部"], "scope": "全公司", "plain_summary": "这是结构测试，不包含真实业务数字。", "provisional": True},
             "filters": {"time_options": ["2026年7月"], "scope_options": ["全公司"], "biz_options": ["全部"], "requires_requery": True},
@@ -75,6 +152,9 @@ def main():
         run([ROOT / "scripts" / "validate_report_data.py", report_path])
         run([ROOT / "scripts" / "render_dashboard.py", report_path, "--out", html])
         run([ROOT / "scripts" / "validate_dashboard.py", html])
+        bad_js = td / "bad-js.html"
+        bad_js.write_text('<script>function setMetric(id){const el=document.getElementById(id);el.querySelector(".value").innerHTML="1"}</script><script id="report-data" type="application/json">{"metrics":[],"datasets":{},"filters":{}}</script>', encoding="utf-8")
+        run([ROOT / "scripts" / "validate_dashboard.py", bad_js], expect_ok=False)
         run([ROOT / "scripts" / "lookup_field.py", "合同编号", "--limit", "1"])
         run([ROOT / "scripts" / "recommend_export.py", "按业绩小组统计已实收业绩"])
         house = run([ROOT / "scripts" / "recommend_export.py", "查询上月新上房源数量和挂牌均价"])
