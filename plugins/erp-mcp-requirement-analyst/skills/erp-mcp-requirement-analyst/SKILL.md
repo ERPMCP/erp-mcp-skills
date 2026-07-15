@@ -22,6 +22,9 @@ Use this skill for customer-facing ERP MCP reporting. Customers are often not te
 - Do not expose technical jargon in the main UI. Put tool names, field names, JSON, formulas, and raw parameters only in a collapsed `数据来源与技术说明` section.
 - If a semi-professional business term must appear in customer-facing chat, option cards, or HTML, add a short explanation in parentheses immediately after the term. Example: `每套房等权均价（每套房都算 1 套）`.
 - Keep all customer-facing progress and reasoning in Chinese. Do not write English status text such as `I'll start by...` or `I've reviewed...` to customers.
+- Do not improve speed by skipping necessary questions. Faster flow means avoiding premature large queries, duplicate schema probing, raw JSON chatter, and unnecessary file rewrites; it does not mean lowering the quality of requirement confirmation.
+- When a request will take a long time after the customer confirms choices, first provide a lightweight page layout preview with no fake data. Ask the customer to confirm the layout before running full data pulls and writing the final dashboard.
+- Give customers a clear optional entry for result export: `最终页面是否需要导出表格？` This is a page-output preference, not a substitute for metric definition questions.
 - Never recommend exporting a house/property table. The supported export list has no house export. Do not suggest `房源表`, `新上房源表`, `房源明细导出`, `在售房源导出`, `在租房源导出`, or any invented house export.
 - Do not call MCP-visible people `公司总人数` or `全员`. Headcount/opening-rate denominators require personnel export, or must be labeled `系统能看到的业务人员`.
 - Do not interpret unknown status codes. Show raw values and say the meaning is not公开.
@@ -39,12 +42,14 @@ Read only what is needed:
 - `references/house_export_forbidden.md`: hard rule for house/new-listing scenarios.
 - `references/final_html_interaction_rules.md`: final HTML, filters, opening, and no-fake-0 requirements.
 - `references/plain_language_rules.md`: customer-facing wording rules.
+- `references/performance_rules.md`: fast confirmation, layout-preview, and long-running query rules.
 - `references/house_new_listing_price_case.md`: standard case for `上月新上房源数量 + 挂牌均价`.
 - `references/mcp_connection_rules.md`: ERP MCP preflight, missing connector, and customer setup messages.
 - `assets/requirement_wizard_template.html`: first-round Apple-style clickable requirement page.
 - `assets/dashboard_template.html`: final interactive dashboard template.
 - `scripts/recommend_export.py`: export recommendation with whitelist enforcement.
 - `scripts/render_requirement_wizard.py`: render first-round requirement page.
+- `scripts/render_layout_preview.py`: render a lightweight dashboard layout preview before long queries.
 - `scripts/render_dashboard.py`: render final dashboard.
 - `scripts/validate_report_data.py`, `scripts/validate_dashboard.py`: validate data and HTML.
 
@@ -82,16 +87,18 @@ If a field is needed but only a house export would solve it, do not recommend ex
 1. Run the ERP MCP preflight above.
 2. Classify the request: statistics, contract detail, finance, performance allocation, staff/org, house listing, section market, field support, dashboard.
 3. Extract known date range, business type, metric, role attribution, scope, denominator, and output requirement.
-4. Ask only critical questions that change the number. If only one valid method remains, show an explanation card instead of a pointless choice.
-5. Prefer a clickable Apple-style HTML questionnaire when critical choices remain.
-6. Inspect live MCP schema first when available; otherwise use references and field matrix.
-7. Plan data sources, dedupe keys, join keys, privacy masking, and export gaps.
-8. Query real MCP data. Split date ranges over 31 days where required.
-9. Normalize data while preserving text IDs and front zeros. Never default missing metric values to 0.
-10. Aggregate one-to-many child tables before joining; never join raw receivable, allocation, actual-income, and payment rows directly.
-11. Reconcile official statistics and detail data; if they differ, show both, do not force a match.
-12. Render final HTML and validate it. Try to open it; only say `已自动打开` if it actually opened.
-13. Return a short chat summary with the HTML path and key limitation.
+4. Ask every critical question that changes the number. Do not remove required questions for speed. If only one valid method remains, show an explanation card instead of a pointless choice.
+5. Add a non-required export preference question or page control: whether the final page should include table export, and whether to export summary, detail, or both.
+6. Prefer a clickable Apple-style HTML questionnaire when critical choices remain.
+7. For common or long-running reports, render a lightweight layout preview before full querying. The preview must show structure and planned filters only, with `等待查询`, never fake data.
+8. Inspect live MCP schema first when available; otherwise use references and field matrix.
+9. Plan data sources, dedupe keys, join keys, privacy masking, and export gaps.
+10. Query real MCP data. Split date ranges over 31 days where required.
+11. Normalize data while preserving text IDs and front zeros. Never default missing metric values to 0.
+12. Aggregate one-to-many child tables before joining; never join raw receivable, allocation, actual-income, and payment rows directly.
+13. Reconcile official statistics and detail data; if they differ, show both, do not force a match.
+14. Render final HTML and validate it. Try to open it; only say `已自动打开` if it actually opened.
+15. Return a short chat summary with the HTML path and key limitation.
 
 ## Plain Chinese UI Rules
 
@@ -122,6 +129,27 @@ When asking a question in WorkBuddy's native choice card, use the same plain-Chi
 - Bad: `按面积加权均价`
 
 For any first-use professional term, use `术语（解释）`. Keep the explanation short; put longer details below the option.
+
+For terse WorkBuddy choice cards, never leave labels like `两种都展示`, `每套等权`, or `面积加权` unexplained. Use:
+
+- `两种都展示（同时给出两套算法结果，方便对比）`
+- `每套等权（每套房都算 1 套）`
+- `面积加权（大面积房源影响更大）`
+
+Then add one sentence below the option explaining how it is calculated.
+
+## Performance Without Quality Loss
+
+Read `references/performance_rules.md` when a request is slow, requires many MCP calls, or will generate a large HTML report.
+
+Speed rules:
+
+- Do not skip mandatory metric-definition questions.
+- Before the first customer confirmation, do only ERP connection checks, intent classification, and lightweight schema lookup. Do not run full report queries just to decide what to ask.
+- Use known scenario templates for common requests, but still ask required choices.
+- If final generation may take more than a few minutes, show a lightweight layout preview first and ask the customer to confirm the page structure.
+- After confirmation, query in batches, keep raw JSON out of chat, and write intermediate files silently.
+- Prefer a quick verified preview of core numbers before spending time on polished final HTML when the data volume is large.
 
 ## First-Round Requirement HTML
 

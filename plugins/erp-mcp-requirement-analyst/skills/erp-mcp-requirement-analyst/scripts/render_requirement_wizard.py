@@ -63,11 +63,23 @@ BAD_TIME_OPTION_PARTS = ("数量=上月", "均价=本月", "queryRptData", "isNe
 TERM_LABELS = {
     "挂牌均价": "挂牌均价（当前挂牌单价的平均值）",
     "挂牌均单价": "挂牌均价（当前挂牌单价的平均值）",
+    "两种都展示": "两种都展示（同时给出两套算法结果，方便对比）",
+    "每套等权": "每套等权（每套房都算 1 套）",
     "每套房等权均价": "每套房等权均价（每套房都算 1 套）",
+    "面积加权": "面积加权（大面积房源影响更大）",
     "按面积加权均价": "按面积计算整体均价（大面积房源影响更大）",
     "面积加权均价": "按面积计算整体均价（大面积房源影响更大）",
     "层级筛选": "层级筛选（按全公司、片区、门店等范围筛选）",
     "明细": "明细（组成这个数字的具体记录）",
+}
+
+TERM_DESCRIPTIONS = {
+    "两种都展示": "同时显示“每套等权”和“按面积计算整体均价”两个结果，客户可以看到两个算法的差异。",
+    "每套等权": "把每套房的每平方米挂牌价相加，再除以房源套数。每套房的影响一样大。",
+    "每套房等权均价": "把每套房的每平方米挂牌价相加，再除以房源套数。每套房的影响一样大。",
+    "面积加权": "先估算每套房总价，再用总价合计除以总面积合计。大面积房源对结果影响更大。",
+    "按面积加权均价": "先估算每套房总价，再用总价合计除以总面积合计。大面积房源对结果影响更大。",
+    "面积加权均价": "先估算每套房总价，再用总价合计除以总面积合计。大面积房源对结果影响更大。",
 }
 
 
@@ -82,6 +94,19 @@ def explain_term(text):
         if term in text and explained not in text:
             return text.replace(term, explained)
     return text
+
+
+def explain_option_description(label, description):
+    """Give short plain-Chinese help for terse native choice-card options."""
+    if not isinstance(label, str):
+        return description
+    current = description if isinstance(description, str) else ""
+    if len(current.strip()) >= 12:
+        return current
+    for term, help_text in TERM_DESCRIPTIONS.items():
+        if term in label:
+            return help_text
+    return current
 
 
 def normalize_customer_language(config):
@@ -117,6 +142,7 @@ def normalize_customer_language(config):
                     opt["label"] = "按系统当前可查询的方式统计"
                     opt["description"] = "系统当前只有这一种可行统计方式，具体说明会显示在说明卡里。"
             opt["label"] = explain_term(opt.get("label", ""))
+            opt["description"] = explain_option_description(opt.get("label", ""), opt.get("description", ""))
     return config
 
 
@@ -134,6 +160,40 @@ def prune_questions(config):
     return config
 
 
+def ensure_export_choice(config):
+    """Always give customers a clear, non-blocking export entry."""
+    questions = config.setdefault("questions", [])
+    if any(q.get("id") in ("export_need", "export_option", "need_export") for q in questions):
+        return config
+    questions.append({
+        "id": "export_need",
+        "title": "最终页面是否需要导出表格？",
+        "required": False,
+        "options": [
+            {
+                "value": "export_loaded_detail",
+                "label": "需要导出本次结果",
+                "description": "在最终页面放导出按钮，只导出本次已经查到并校验过的数据。",
+                "support": "可以直接做",
+                "recommended": True
+            },
+            {
+                "value": "export_summary_and_detail",
+                "label": "汇总和明细都导出",
+                "description": "同时导出汇总数字和明细（组成这个数字的具体记录），方便后续核对。",
+                "support": "可以直接做"
+            },
+            {
+                "value": "no_export_now",
+                "label": "暂时不需要",
+                "description": "先看交互页面，后续需要时再补导出入口。",
+                "support": "可以直接做"
+            }
+        ]
+    })
+    return config
+
+
 def main():
     ap = argparse.ArgumentParser(description="Render Apple-style ERP requirement wizard in plain Chinese.")
     ap.add_argument("--config")
@@ -144,6 +204,7 @@ def main():
         config = json.loads(Path(args.config).read_text(encoding="utf-8-sig"))
     config = normalize_customer_language(config)
     config = prune_questions(config)
+    config = ensure_export_choice(config)
     html = TEMPLATE.read_text(encoding="utf-8").replace("@@WIZARD_JSON@@", json.dumps(config, ensure_ascii=False))
     Path(args.out).write_text(html, encoding="utf-8")
     print(args.out)

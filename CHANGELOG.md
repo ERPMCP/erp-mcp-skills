@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.2 - 2026-07-15
+
+- Expand terse average-price options such as `两种都展示`, `每套等权`, and `面积加权` with customer-friendly explanations.
+- Add a non-required export preference entry so customers can choose whether the final page includes table export.
+- Add a lightweight layout-preview step for long-running reports before full MCP pulls and final HTML generation.
+- Add performance rules that preserve all necessary requirement questions while avoiding premature large queries and noisy raw-data output.
+
 ## 2.1.1 - 2026-07-15
 
 - Add required parenthetical explanations for semi-professional customer-facing terms.
