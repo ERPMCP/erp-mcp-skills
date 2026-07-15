@@ -1,7 +1,7 @@
 {
   "name": "erp-mcp-requirement-analyst",
-  "version": "2.1.4",
-  "description": "ERP MCP demand clarification, export guidance, connector preflight, and interactive HTML dashboards for ERP customers.",
+  "version": "2.2.0",
+  "description": "ERP MCP demand clarification, export guidance, connector preflight, MCP Apps realtime dashboards, and interactive HTML fallbacks for ERP customers.",
   "author": {
     "name": "ERP Skill Team"
   },
@@ -18,7 +18,7 @@
   "interface": {
     "displayName": "ERP MCP 需求助手",
     "shortDescription": "澄清ERP统计方式并生成交互HTML看板",
-    "longDescription": "Clarifies vague ERP MCP reporting requests, checks whether the ERP MCP connector is available before querying, routes to real ERP MCP data or allowed system exports, forbids fabricated data and unsupported house-export suggestions, and renders customer-friendly interactive HTML dashboards.",
+    "longDescription": "Clarifies vague ERP MCP reporting requests, checks whether the ERP MCP connector is available before querying, routes to real ERP MCP data or allowed system exports, prefers MCP Apps realtime dashboards for interactive ERP querying, forbids fabricated data and unsupported house-export suggestions, and renders customer-friendly interactive HTML fallbacks when realtime widgets are unavailable.",
     "developerName": "ERP Skill Team",
     "category": "Productivity",
     "capabilities": [
@@ -29,7 +29,7 @@
     "defaultPrompt": [
       "用ERP MCP需求助手澄清统计方式并生成交互HTML看板。",
       "查询ERP数据前先检查ERP连接器是否可用。",
-      "生成带来源说明和明细钻取的ERP数据报告。"
+      "优先生成可实时查询的MCP Apps看板；不可用时再生成普通HTML降级页。"
     ],
     "brandColor": "#007AFF"
   }

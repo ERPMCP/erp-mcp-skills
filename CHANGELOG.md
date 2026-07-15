@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.2.0 - 2026-07-15
+
+- Make MCP Apps Widget the preferred output for ERP dashboards that need realtime interaction, including time, organization scope, business type, refresh, and drilldown.
+- Add dedicated MCP Apps realtime dashboard rules and require agents to check for a host/widget bridge before generating page-internal ERP query buttons.
+- Update the dashboard template so it uses a secure `callServerTool` bridge only when available, and clearly falls back to copy-back-to-chat behavior for ordinary local HTML pages.
+- Forbid embedding ERP URLs, Authorization headers, Bearer tokens, or access tokens inside generated HTML.
+- Clarify that ordinary `file:///dashboard.html` pages can do local filtering only and must not pretend to directly connect to ERP MCP.
+
 ## 2.1.4 - 2026-07-15
 
 - Add a hard pre-confirmation gate: before the first customer question card, requirement wizard, or layout preview is shown and answered, the agent may only check ERP connector availability and read local references/templates.

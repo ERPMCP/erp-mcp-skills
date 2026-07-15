@@ -22,6 +22,10 @@ Use this skill for customer-facing ERP MCP reporting. Customers are often not te
 - Every number must have source, query/filter conditions, plain-language date rule, formula, numerator/denominator when relevant, dedupe key, raw/clean/deduped counts when available, limitations, and drilldown status.
 - All formal query/calculation results must generate self-contained interactive HTML. Chat should only give a short completion note, the HTML link, and serious limitations.
 - The HTML must offer real interaction where possible: time, scope, business type, search/filter, detail drilldown, metric explanation, and export buttons if real data exists.
+- Prefer a WorkBuddy native MCP Apps Widget for ERP result pages by default. Most ERP reports need interaction such as changing time, changing organization scope, switching business type, refreshing data, or drilling into details, so first judge whether the result should be a realtime Widget.
+- If the report has filters or actions that require re-reading ERP data, prioritize MCP Apps Widget over ordinary HTML. Ordinary self-contained HTML is only the fallback when the host or ERP MCP does not currently support Widget/secure-bridge output.
+- If the customer asks for page-internal realtime ERP querying, use a WorkBuddy native MCP Apps Widget or another host-provided secure bridge. A normal `file:///.../dashboard.html` page cannot directly call the current conversation's ERP MCP and must not pretend that it can.
+- Never put ERP MCP URL, Authorization header, Token, or session credentials inside generated HTML or browser JavaScript. Realtime page querying is allowed only through a host bridge such as `app.callServerTool()` or an explicitly provided secure local/remote bridge.
 - Do not show fake `0`. Missing data, failed scripts, failed MCP calls, or broken page data must display `等待查询`, `暂无可验证数据`, or `加载失败`.
 - Do not expose technical jargon in the main UI. Put tool names, field names, JSON, formulas, and raw parameters only in a collapsed `数据来源与技术说明` section.
 - If a semi-professional business term must appear in customer-facing chat, option cards, or HTML, add a short explanation in parentheses immediately after the term. Example: `每套房等权均价（每套房都算 1 套）`.
@@ -49,6 +53,7 @@ Read only what is needed:
 - `references/export_whitelist.json`: the only export tables that may be recommended.
 - `references/house_export_forbidden.md`: hard rule for house/new-listing scenarios.
 - `references/final_html_interaction_rules.md`: final HTML, filters, opening, and no-fake-0 requirements.
+- `references/mcp_apps_widget_rules.md`: realtime page querying rules, MCP Apps Widget requirements, and safe fallback behavior.
 - `references/plain_language_rules.md`: customer-facing wording rules.
 - `references/performance_rules.md`: fast confirmation, layout-preview, and long-running query rules.
 - `references/house_new_listing_price_case.md`: standard case for `上月新上房源数量 + 挂牌均价`.
@@ -193,7 +198,11 @@ Also include a `重新选择条件` action that opens or links back to the requi
 
 Separate `应用筛选` for loaded data from `按此条件重新查询` for conditions requiring a new MCP call. Never show controls that do not work.
 
-If the page is a local HTML file and cannot call MCP by itself, the button text must make that clear: `复制筛选条件，回到对话继续查询`.
+For page-internal realtime querying, or for any report with time/scope/business-type filters that may need fresh ERP data, read `references/mcp_apps_widget_rules.md` before generating the page.
+
+If the page is a WorkBuddy native MCP Apps Widget or another verified secure bridge is available, the query button may call ERP through that bridge and update the page in place.
+
+If the page is a normal local/static HTML file and cannot call MCP by itself, the button text must make that clear: `复制筛选条件，回到对话继续查询`. Do not label it `按此条件重新查询` unless the click actually reaches ERP through a verified bridge.
 
 ## Tool Routing
 
