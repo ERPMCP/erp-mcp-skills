@@ -35,6 +35,7 @@ Use this skill for customer-facing ERP MCP reporting. Customers are often not te
 - Do not expose technical jargon in the main UI. Put tool names, field names, JSON, formulas, and raw parameters only in a collapsed `数据来源与技术说明` section.
 - If a semi-professional business term must appear in customer-facing chat, option cards, or HTML, add a short explanation in parentheses immediately after the term. Example: `每套房等权均价（每套房都算 1 套）`.
 - Keep all customer-facing progress and reasoning in Chinese. Do not write English status text such as `I'll start by...` or `I've reviewed...` to customers.
+- Do not narrate internal setup steps to customers. Do not show messages like `loading the skill`, `reading reference files`, `explore available tools`, `let me do exploratory calls`, or `I have studied the rules`. If progress must be shown, use one short Chinese sentence such as `我先确认 ERP 是否已连接，然后给你一个可确认的查询页面。`
 - Do not improve speed by skipping necessary questions. Faster flow means avoiding premature large queries, duplicate schema probing, raw JSON chatter, and unnecessary file rewrites; it does not mean lowering the quality of requirement confirmation.
 - When a request will take a long time after the customer confirms choices, first provide a lightweight page layout preview with no fake data. Ask the customer to confirm the layout before running full data pulls and writing the final dashboard.
 - For realtime-capable reports, prefer generating the MCP Apps Widget shell first. The shell should load quickly, show filters and empty metric cards, and trigger ERP querying only when the customer clicks its query/confirm button.
@@ -106,7 +107,7 @@ If a field is needed but only a house export would solve it, do not recommend ex
 
 ## Core Workflow
 
-1. Run the ERP MCP preflight above. This is a connection check only, not a data probe.
+1. Run the ERP MCP preflight above. This is a connection check only, not a data probe. Do not show the connector/tool names to the customer unless the connector is missing or broken.
 2. Classify the request: statistics, contract detail, finance, performance allocation, staff/org, house listing, section market, field support, dashboard.
 3. Extract known date range, business type, metric, role attribution, scope, denominator, and output requirement.
 4. Determine required questions from local scenario templates and references. Do not call business-data MCP tools to decide what to ask.

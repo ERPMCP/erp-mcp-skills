@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2.2 - 2026-07-15
+
+- Hide internal setup chatter such as skill loading, reference reading, tool exploration, and English progress text from customers.
+- Add a screenshot-style audit rule: exploratory `queryRptData` and `listHouseByCondition` calls are not allowed before the customer sees and confirms the preview/query shell.
+- Require known scenarios to use local templates immediately instead of live data probes.
+
 ## 2.2.1 - 2026-07-15
 
 - Enforce preview-first behavior for slow ERP reports: show a requirement preview or MCP Apps Widget shell before any full data pull.

@@ -46,6 +46,19 @@
 
    首轮不要先跑完整报表查询、全量分页、全员组织扫描或正式 HTML 生成。
 
+   客户可见流程里，不要展示这些内部过程：
+
+   - 加载技能；
+   - 阅读参考文件；
+   - 学习规则；
+   - 探索可用工具；
+   - 探测真实数据结构；
+   - 英文进度说明。
+
+   如果需要给客户进度，只说一句中文：
+
+   `我先确认 ERP 是否已连接，然后给你一个可确认的查询页面。`
+
    如果已经生成了问题确认页、WorkBuddy 原生选择卡、MCP Apps Widget 壳子或排版预览，必须立即停止，等待客户选择或点击页面按钮。不能一边等客户确认，一边继续查询或写正式页面。
 
    最长等待 5 分钟。超过 5 分钟仍未确认时，可以按推荐方案继续到“预览/Widget 壳子”，但不要直接拉全量 ERP 数据。只有在用户确认预览或点击查询按钮后，才开始读取大量数据。最终页面必须说明这是因为客户没有及时确认而采用的推荐方案，并提供重新选择入口。
@@ -167,6 +180,20 @@ Before the customer answers, the agent must not call `queryRptData`, `queryContr
 For the common house request `上月新上房源数量 + 挂牌均价`, do not probe live house/listing data before asking required choices. Ask first, then query after the customer confirms or after the 5-minute recommended fallback is explicitly applied.
 
 If the agent has already shown a question card, requirement wizard, MCP Apps Widget shell, or layout preview, it must stop. Continuing to fetch ERP data in the background is a failure of this skill.
+
+## Screenshot-style step audit
+
+For a flow like:
+
+1. loading the skill;
+2. reading `house_new_listing_price_case.md`;
+3. explaining internal tools such as `queryRptData` and `listHouseByCondition`;
+4. saying "let me do exploratory calls";
+5. calling `queryRptData` twice and `listHouseByCondition` twice before the preview;
+
+only item 1 is internally necessary, and it should not be narrated in English to the customer. Item 2 may be needed internally only when no cached scenario is available, but it should not delay the first customer-facing preview. Items 3, 4, and 5 are not allowed before customer confirmation.
+
+For known scenarios, use the local scenario template immediately. Do not do exploratory MCP calls to "learn data shape" before showing the preview/question page.
 
 ## Deferred data mode
 
