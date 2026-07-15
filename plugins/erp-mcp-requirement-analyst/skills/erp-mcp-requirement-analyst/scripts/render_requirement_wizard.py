@@ -60,6 +60,28 @@ DEFAULT_CONFIG = {
 
 BAD_TIME_WORDS = ("时间口径", "日期口径")
 BAD_TIME_OPTION_PARTS = ("数量=上月", "均价=本月", "queryRptData", "isNew", "unitPrice")
+TERM_LABELS = {
+    "挂牌均价": "挂牌均价（当前挂牌单价的平均值）",
+    "挂牌均单价": "挂牌均价（当前挂牌单价的平均值）",
+    "每套房等权均价": "每套房等权均价（每套房都算 1 套）",
+    "按面积加权均价": "按面积计算整体均价（大面积房源影响更大）",
+    "面积加权均价": "按面积计算整体均价（大面积房源影响更大）",
+    "层级筛选": "层级筛选（按全公司、片区、门店等范围筛选）",
+    "明细": "明细（组成这个数字的具体记录）",
+}
+
+
+def explain_term(text):
+    """Append short explanations for customer-facing semi-professional terms."""
+    if not isinstance(text, str) or "（" in text:
+        return text
+    stripped = text.strip()
+    if stripped in TERM_LABELS:
+        return TERM_LABELS[stripped]
+    for term, explained in TERM_LABELS.items():
+        if term in text and explained not in text:
+            return text.replace(term, explained)
+    return text
 
 
 def normalize_customer_language(config):
@@ -79,18 +101,22 @@ def normalize_customer_language(config):
             continue
         if label in ("查看时间", "查询时间"):
             f["label"] = "统计月份"
+        f["label"] = explain_term(f.get("label", ""))
         f["options"] = [str(o).replace("自定义时间", "自定义月份") for o in options]
+        f["options"] = [explain_term(o) for o in f["options"]]
         normalized_filters.append(f)
     config["base_filters"] = normalized_filters
 
     for q in config.get("questions", []):
         if q.get("title") in BAD_TIME_WORDS:
             q["title"] = "这个数字按哪个日期统计？"
+        q["title"] = explain_term(q.get("title", ""))
         for opt in q.get("options", []):
             for part in BAD_TIME_OPTION_PARTS:
                 if part in opt.get("label", ""):
                     opt["label"] = "按系统当前可查询的方式统计"
                     opt["description"] = "系统当前只有这一种可行统计方式，具体说明会显示在说明卡里。"
+            opt["label"] = explain_term(opt.get("label", ""))
     return config
 
 

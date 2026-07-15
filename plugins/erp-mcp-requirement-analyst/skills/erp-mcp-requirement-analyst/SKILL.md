@@ -20,6 +20,8 @@ Use this skill for customer-facing ERP MCP reporting. Customers are often not te
 - The HTML must offer real interaction where possible: time, scope, business type, search/filter, detail drilldown, metric explanation, and export buttons if real data exists.
 - Do not show fake `0`. Missing data, failed scripts, failed MCP calls, or broken page data must display `等待查询`, `暂无可验证数据`, or `加载失败`.
 - Do not expose technical jargon in the main UI. Put tool names, field names, JSON, formulas, and raw parameters only in a collapsed `数据来源与技术说明` section.
+- If a semi-professional business term must appear in customer-facing chat, option cards, or HTML, add a short explanation in parentheses immediately after the term. Example: `每套房等权均价（每套房都算 1 套）`.
+- Keep all customer-facing progress and reasoning in Chinese. Do not write English status text such as `I'll start by...` or `I've reviewed...` to customers.
 - Never recommend exporting a house/property table. The supported export list has no house export. Do not suggest `房源表`, `新上房源表`, `房源明细导出`, `在售房源导出`, `在租房源导出`, or any invented house export.
 - Do not call MCP-visible people `公司总人数` or `全员`. Headcount/opening-rate denominators require personnel export, or must be labeled `系统能看到的业务人员`.
 - Do not interpret unknown status codes. Show raw values and say the meaning is not公开.
@@ -105,10 +107,21 @@ Use ordinary customer-facing terms in the main UI:
 - `统计月份`
 - `查看范围`
 - `业务类型`
+- `每套房等权均价（每套房都算 1 套）`
+- `按面积计算整体均价（大面积房源影响更大）`
 
 Do not show these in main UI text: `queryRptData`, `listHouseByCondition`, `queryContractFinanceData`, `isNew`, `unitPrice`, `bizType`, `schema`, `JSON`, `日期口径`, `MCP支持但口径需说明`, `算术平均`, `面积加权`, `drilldown`, `lineage`.
 
 Technical names may appear only inside collapsed `数据来源与技术说明`.
+
+When asking a question in WorkBuddy's native choice card, use the same plain-Chinese rule as HTML. For example:
+
+- Good: `每套房等权均价（每套房都算 1 套）`
+- Good: `按面积计算整体均价（大面积房源影响更大）`
+- Bad: `每套房等权均价`
+- Bad: `按面积加权均价`
+
+For any first-use professional term, use `术语（解释）`. Keep the explanation short; put longer details below the option.
 
 ## First-Round Requirement HTML
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.1 - 2026-07-15
+
+- Add required parenthetical explanations for semi-professional customer-facing terms.
+- Enforce Chinese customer-facing progress and option text.
+- Auto-expand terms such as `每套房等权均价` and `按面积加权均价` in generated HTML.
+
 ## 2.1.0 - 2026-07-15
 
 - Improve customer-facing wording and remove confusing visible terms such as `时间口径`.

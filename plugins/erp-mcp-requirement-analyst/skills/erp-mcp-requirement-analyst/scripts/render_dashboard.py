@@ -6,6 +6,26 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = ROOT / "assets" / "dashboard_template.html"
 FORBIDDEN_EXPORT = ["房源表", "房源导出", "房源明细导出", "新上房源导出", "在售房源导出", "在租房源导出", "房源历史表"]
+TERM_LABELS = {
+    "挂牌均价": "挂牌均价（当前挂牌单价的平均值）",
+    "挂牌均单价": "挂牌均价（当前挂牌单价的平均值）",
+    "每套房等权均价": "每套房等权均价（每套房都算 1 套）",
+    "按面积加权均价": "按面积计算整体均价（大面积房源影响更大）",
+    "面积加权均价": "按面积计算整体均价（大面积房源影响更大）",
+    "明细": "明细（组成这个数字的具体记录）",
+}
+
+
+def explain_term(text):
+    if not isinstance(text, str) or "（" in text:
+        return text
+    stripped = text.strip()
+    if stripped in TERM_LABELS:
+        return TERM_LABELS[stripped]
+    for term, explained in TERM_LABELS.items():
+        if term in text and explained not in text:
+            return text.replace(term, explained)
+    return text
 
 
 def normalize(report):
@@ -21,6 +41,7 @@ def normalize(report):
     report["filters"].setdefault("biz_options", report.get("meta", {}).get("biz_types") or ["全部"])
     report["filters"].setdefault("notice", "如果切换条件需要重新查询，页面会明确提示。")
     for m in report["metrics"]:
+        m["label"] = explain_term(m.get("label", ""))
         if "value" not in m or m.get("value") is None or m.get("value") == "":
             m["missing"] = True
             m.setdefault("limitations", []).append("这个指标还没有取得可验证数据。")

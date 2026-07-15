@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.1 - 2026-07-15
+
+- Add required parenthetical explanations for semi-professional customer-facing terms.
+- Auto-expand average-price option labels in generated pages.
+
 ## 2.1.0 - 2026-07-15
 
 - Improve customer-facing wording and remove confusing visible technical terms.
