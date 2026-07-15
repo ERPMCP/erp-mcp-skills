@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2.3 - 2026-07-15
+
+- Make fast-first choice pages the actual workflow, not just a display cleanup.
+- For known/common scenarios, defer ERP connector waiting and tool checks until after the customer confirms choices or clicks `确认后读取 ERP`.
+- Prevent MCP preflight from blocking the first customer-visible question page.
+
 ## 2.2.2 - 2026-07-15
 
 - Hide internal setup chatter such as skill loading, reference reading, tool exploration, and English progress text from customers.

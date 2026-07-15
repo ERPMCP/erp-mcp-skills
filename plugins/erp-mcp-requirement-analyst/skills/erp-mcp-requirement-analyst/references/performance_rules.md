@@ -39,7 +39,6 @@
 
    首轮只做：
 
-   - ERP 连接是否可用；
    - 用户大概要查什么；
    - 需要哪些会改变数字的选择；
    - 是否需要导出最终结果表格。
@@ -55,9 +54,11 @@
    - 探测真实数据结构；
    - 英文进度说明。
 
+   对已知场景，ERP 连接检查可以放到客户点击 `确认后读取 ERP` 之后。不要为了等连接器、等 MCP Server 或探测工具列表而拖慢第一个问题页面。
+
    如果需要给客户进度，只说一句中文：
 
-   `我先确认 ERP 是否已连接，然后给你一个可确认的查询页面。`
+   `我先给你一个可确认的查询页面，确认后再读取 ERP 数据。`
 
    如果已经生成了问题确认页、WorkBuddy 原生选择卡、MCP Apps Widget 壳子或排版预览，必须立即停止，等待客户选择或点击页面按钮。不能一边等客户确认，一边继续查询或写正式页面。
 
@@ -169,11 +170,12 @@ This rule exists because WorkBuddy may otherwise spend 10+ minutes pulling ERP d
 
 Before the first customer confirmation page/card, MCP Apps Widget shell, or layout preview is visible, the agent may only do these fast actions:
 
-- check whether the `erp` MCP connector/tools exist;
 - classify the user's request;
 - read local skill references, templates, and schemas;
 - decide which questions are required;
 - render and open the requirement wizard, native WorkBuddy question card, MCP Apps Widget shell, or layout preview.
+
+For known/common scenarios, even connector/tool checks should be deferred if they would delay the first choice page. The connector check runs after the customer confirms choices or clicks the Widget query button.
 
 Before the customer answers, the agent must not call `queryRptData`, `queryContractFinanceData`, `listHouseByCondition`, `getHouseByHouseNo`, section market tools, or any ERP tool that returns business data, counts, sample rows, pages, or full datasets.
 

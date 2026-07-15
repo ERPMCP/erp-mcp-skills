@@ -11,10 +11,12 @@ Use this skill for customer-facing ERP MCP reporting. Customers are often not te
 
 - Never invent ERP data: no fake contract numbers, people, departments, amounts, dates, rows, totals, or fallback demo values.
 - Treat screenshots as unverified UI references, never as data truth.
-- Before any query, first check whether the current conversation has usable `erp` MCP tools.
+- Before any real ERP data query, check whether the current conversation has usable `erp` MCP tools. Do not let this check delay the first customer choice page for known scenarios.
 - If the `erp` MCP is missing, disabled, still connecting, unauthorized, or not allowed, do not generate a "waiting for query" dashboard. Show a short connection diagnostic and setup guidance instead.
-- If the host supports waiting for MCP servers, wait for the ERP MCP once, then re-check tools before deciding it is unavailable.
+- If the host supports waiting for MCP servers, wait for the ERP MCP only after the customer has confirmed the choices or clicked `确认后读取 ERP`. Do not wait for MCP servers before showing the first requirement choices for common scenarios.
 - Do not require the customer to say "please connect ERP MCP" in the chat when the connector is already configured. The skill must check and use it automatically.
+- FAST-FIRST CHOICE RULE: for known/common scenarios, the first customer-visible output must be a native question card, requirement wizard, or Widget shell generated from local templates. Target this before any ERP MCP data call, live schema probe, or wait-for-server step.
+- The first choice page should appear quickly and contain only necessary choices, export preference, and a clear notice: `确认后才会读取 ERP 数据。`
 - HARD PRE-CONFIRMATION GATE: before the first customer confirmation page/card or layout preview is shown and answered, do not call business-data MCP tools. Allowed before confirmation: connector/tool availability check, intent classification, and reading local reference files/templates only.
 - HARD PREVIEW-FIRST GATE: for any report that may require many rows, pagination, all-company data, organization breakdown, house listings, contract details, or a polished dashboard, do not pull full ERP data immediately after the first requirement choices. First show a lightweight layout preview or MCP Apps Widget shell with `等待查询`, planned filters, planned metrics, and a clear `开始查询` / `确认后读取ERP` action.
 - Data-heavy MCP calls may start only after the customer explicitly confirms the preview or clicks the realtime Widget query button. If the customer has not confirmed, do not write raw MCP responses, JSON datasets, or final dashboards in the background.
@@ -78,7 +80,9 @@ Source priority: live MCP response, uploaded files, MCP capability TXT, TSV matr
 
 ## ERP MCP Preflight
 
-Always do this before generating requirement pages or dashboards that need live ERP data:
+Do this before real ERP reads, not necessarily before the first choice page.
+
+For known/common scenarios, first render the customer choice page from local templates. Then run preflight after the customer confirms choices or clicks the Widget query button.
 
 1. Inspect current available tools/connectors for an `erp` MCP server and ERP query tools.
 2. If ERP tools are available, mark ERP as usable and continue to requirement confirmation. Do not call business-data tools yet unless the required-choice gate has already been cleared.
@@ -107,21 +111,20 @@ If a field is needed but only a house export would solve it, do not recommend ex
 
 ## Core Workflow
 
-1. Run the ERP MCP preflight above. This is a connection check only, not a data probe. Do not show the connector/tool names to the customer unless the connector is missing or broken.
-2. Classify the request: statistics, contract detail, finance, performance allocation, staff/org, house listing, section market, field support, dashboard.
-3. Extract known date range, business type, metric, role attribution, scope, denominator, and output requirement.
-4. Determine required questions from local scenario templates and references. Do not call business-data MCP tools to decide what to ask.
-5. Ask every critical question that changes the number before any full or sample data pull. Do not remove required questions for speed. If only one valid method remains, show an explanation card instead of a pointless choice.
-6. Add a non-required export preference question or page control: whether the final page should include table export, and whether to export summary, detail, or both.
-7. Prefer a clickable Apple-style HTML questionnaire when critical choices remain. After rendering it, try to open it and then stop.
-8. If a report needs interactive filters, organization scopes, drilldown, or may query many rows, render an MCP Apps Widget shell or lightweight layout preview before full querying. The preview must show structure and planned filters only, with `等待查询` or `确认后读取 ERP`, never fake data. After rendering it, try to open it and then stop.
-9. Only after the customer confirms the preview or clicks the Widget query button, inspect live MCP schema and query real MCP data. Split date ranges over 31 days where required. The 5-minute fallback may apply recommended choices and open the preview shell, but it must not silently start full ERP data pulls.
-10. Plan data sources, dedupe keys, join keys, privacy masking, and export gaps.
-11. Normalize data while preserving text IDs and front zeros. Never default missing metric values to 0.
-12. Aggregate one-to-many child tables before joining; never join raw receivable, allocation, actual-income, and payment rows directly.
-13. Reconcile official statistics and detail data; if they differ, show both, do not force a match.
-14. Render final HTML and validate it. Try to open it; only say `已自动打开` if it actually opened.
-15. Return a short chat summary with the HTML path and key limitation.
+1. Classify the request using the user's words and local scenario templates.
+2. Extract known date range, business type, metric, role attribution, scope, denominator, and output requirement.
+3. Determine required questions from local scenario templates and references. Do not call business-data MCP tools to decide what to ask.
+4. Ask every critical question that changes the number before any full or sample data pull. Do not remove required questions for speed. If only one valid method remains, show an explanation card instead of a pointless choice.
+5. Add a non-required export preference question or page control: whether the final page should include table export, and whether to export summary, detail, or both.
+6. Prefer a clickable Apple-style HTML questionnaire when critical choices remain. After rendering it, try to open it and then stop.
+7. If a report needs interactive filters, organization scopes, drilldown, or may query many rows, render an MCP Apps Widget shell or lightweight layout preview before full querying. The preview must show structure and planned filters only, with `等待查询` or `确认后读取 ERP`, never fake data. After rendering it, try to open it and then stop.
+8. Only after the customer confirms the preview or clicks the Widget query button, run ERP MCP preflight, inspect live MCP schema if needed, and query real MCP data. Split date ranges over 31 days where required. The 5-minute fallback may apply recommended choices and open the preview shell, but it must not silently start full ERP data pulls.
+9. Plan data sources, dedupe keys, join keys, privacy masking, and export gaps.
+10. Normalize data while preserving text IDs and front zeros. Never default missing metric values to 0.
+11. Aggregate one-to-many child tables before joining; never join raw receivable, allocation, actual-income, and payment rows directly.
+12. Reconcile official statistics and detail data; if they differ, show both, do not force a match.
+13. Render final HTML and validate it. Try to open it; only say `已自动打开` if it actually opened.
+14. Return a short chat summary with the HTML path and key limitation.
 
 ## Plain Chinese UI Rules
 
