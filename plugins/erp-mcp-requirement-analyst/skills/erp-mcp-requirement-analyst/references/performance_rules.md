@@ -116,3 +116,22 @@
 例外：如果 5 分钟内没有收到客户选择，并且宿主环境支持继续执行，可以采用推荐选项继续。继续后的最终结果必须显示：
 
 > 因为 5 分钟内没有收到确认，本次先按推荐方案生成。你仍然可以重新修改选择并生成新页面。
+
+
+## Hard pre-confirmation gate
+
+This rule exists because WorkBuddy may otherwise spend 10+ minutes pulling ERP data before showing the first question.
+
+Before the first customer confirmation page/card or layout preview is visible, the agent may only do these fast actions:
+
+- check whether the `erp` MCP connector/tools exist;
+- classify the user's request;
+- read local skill references, templates, and schemas;
+- decide which questions are required;
+- render and open the requirement wizard or native WorkBuddy question card.
+
+Before the customer answers, the agent must not call `queryRptData`, `queryContractFinanceData`, `listHouseByCondition`, `getHouseByHouseNo`, section market tools, or any ERP tool that returns business data, counts, sample rows, pages, or full datasets.
+
+For the common house request `上月新上房源数量 + 挂牌均价`, do not probe live house/listing data before asking required choices. Ask first, then query after the customer confirms or after the 5-minute recommended fallback is explicitly applied.
+
+If the agent has already shown a question card, requirement wizard, or layout preview, it must stop. Continuing to fetch ERP data in the background is a failure of this skill.

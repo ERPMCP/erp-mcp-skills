@@ -4,6 +4,22 @@
 
 > 查询上月新上房源数量，可以按层级筛选，并计算挂牌均价。
 
+
+## Must ask before live ERP data probes
+
+For this scenario, do not call `queryRptData`, `listHouseByCondition`, or any ERP business-data tool before the first customer confirmation. Do not fetch sample houses, monthly counts, or complete pages just to decide what to ask.
+
+The first response should quickly show a native WorkBuddy question card or Apple-style HTML requirement wizard. Required choices usually include:
+
+1. business type: sell, rent, new-house, or selected combination;
+2. average-price method: show both, equal-weight by listing, or area-weighted;
+3. scope level: company, area, store, group, person, or the real levels available after data is queried;
+4. whether the final HTML should include table export buttons.
+
+If the customer does not answer within 5 minutes and the host can continue, use recommended defaults and mark the selection as `auto_defaulted: true`. The final page must tell the customer that recommended choices were used because no confirmation was received within 5 minutes, and provide a reselect/regenerate action.
+
+Only after choices are confirmed or defaulted may the agent pull monthly new-listing counts, current new-listing details, organization data, or full paginated house data.
+
 ## 先拆成两个数字
 
 ### 月度新增房源数量

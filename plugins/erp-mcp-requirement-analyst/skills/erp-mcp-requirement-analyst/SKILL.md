@@ -15,6 +15,10 @@ Use this skill for customer-facing ERP MCP reporting. Customers are often not te
 - If the `erp` MCP is missing, disabled, still connecting, unauthorized, or not allowed, do not generate a "waiting for query" dashboard. Show a short connection diagnostic and setup guidance instead.
 - If the host supports waiting for MCP servers, wait for the ERP MCP once, then re-check tools before deciding it is unavailable.
 - Do not require the customer to say "please connect ERP MCP" in the chat when the connector is already configured. The skill must check and use it automatically.
+- HARD PRE-CONFIRMATION GATE: before the first customer confirmation page/card or layout preview is shown and answered, do not call business-data MCP tools. Allowed before confirmation: connector/tool availability check, intent classification, and reading local reference files/templates only.
+- Before the first customer confirmation, forbidden MCP calls include `queryRptData`, `queryContractFinanceData`, `listHouseByCondition`, `getHouseByHouseNo`, section market tools, and any other tool that can pull real ERP business rows, counts, samples, pages, or full datasets.
+- Before the first customer confirmation, do not probe live data shape, pull sample records, paginate house lists, fetch monthly counts, write raw JSON files, compute aggregates, or start final dashboard generation. If more data is needed, ask the customer first.
+- For common known scenarios such as `上月新上房源数量 + 挂牌均价`, use the scenario template to ask required choices immediately. Do not run live ERP data probes first.
 - Every number must have source, query/filter conditions, plain-language date rule, formula, numerator/denominator when relevant, dedupe key, raw/clean/deduped counts when available, limitations, and drilldown status.
 - All formal query/calculation results must generate self-contained interactive HTML. Chat should only give a short completion note, the HTML link, and serious limitations.
 - The HTML must offer real interaction where possible: time, scope, business type, search/filter, detail drilldown, metric explanation, and export buttons if real data exists.
@@ -64,13 +68,15 @@ Source priority: live MCP response, uploaded files, MCP capability TXT, TSV matr
 Always do this before generating requirement pages or dashboards that need live ERP data:
 
 1. Inspect current available tools/connectors for an `erp` MCP server and ERP query tools.
-2. If ERP tools are available, use them directly. Do not ask the customer to reconnect.
+2. If ERP tools are available, mark ERP as usable and continue to requirement confirmation. Do not call business-data tools yet unless the required-choice gate has already been cleared.
 3. If the host says MCP is still connecting, wait once when possible, then inspect again.
 4. If the connector exists but needs authorization, say: `ERP 连接需要重新授权。请在连接器里重新登录或更新访问令牌。`
 5. If the connector is disabled, say: `ERP 连接器目前是关闭的。请先启用 ERP 连接器，再重新查询。`
 6. If no ERP connector exists in the current conversation, say: `当前任务还没有加载 ERP 连接器，所以我不能直接读取 ERP 数据。请先在 WorkBuddy/Codex 的连接器或插件设置里启用 erp。`
 7. If the plugin bundled MCP config is present but the token is missing, say: `插件已经带了 ERP 连接配置，但还缺访问令牌。请填写 ERP MCP Token，真实 Token 不要发到公开仓库。`
 8. Do not create a formal result dashboard until a real MCP query or real uploaded export has succeeded.
+
+Preflight is only a connection check. It is not permission to probe data. Tool schema inspection is allowed only if it does not call ERP business data tools; if unsure, skip schema probing and ask the required customer questions first.
 
 The customer should not need to write tool names such as `queryRptData` or `listHouseByCondition`. Those are internal choices.
 
@@ -88,16 +94,16 @@ If a field is needed but only a house export would solve it, do not recommend ex
 
 ## Core Workflow
 
-1. Run the ERP MCP preflight above.
+1. Run the ERP MCP preflight above. This is a connection check only, not a data probe.
 2. Classify the request: statistics, contract detail, finance, performance allocation, staff/org, house listing, section market, field support, dashboard.
 3. Extract known date range, business type, metric, role attribution, scope, denominator, and output requirement.
-4. Ask every critical question that changes the number before full data pulls. Do not remove required questions for speed. If only one valid method remains, show an explanation card instead of a pointless choice.
-5. Add a non-required export preference question or page control: whether the final page should include table export, and whether to export summary, detail, or both.
-6. Prefer a clickable Apple-style HTML questionnaire when critical choices remain. After rendering it, try to open it and then stop.
-7. For common or long-running reports, render a lightweight layout preview before full querying. The preview must show structure and planned filters only, with `等待查询`, never fake data. After rendering it, try to open it and then stop.
-8. Inspect live MCP schema first when available; otherwise use references and field matrix.
-9. Plan data sources, dedupe keys, join keys, privacy masking, and export gaps.
-10. Query real MCP data. Split date ranges over 31 days where required.
+4. Determine required questions from local scenario templates and references. Do not call business-data MCP tools to decide what to ask.
+5. Ask every critical question that changes the number before any full or sample data pull. Do not remove required questions for speed. If only one valid method remains, show an explanation card instead of a pointless choice.
+6. Add a non-required export preference question or page control: whether the final page should include table export, and whether to export summary, detail, or both.
+7. Prefer a clickable Apple-style HTML questionnaire when critical choices remain. After rendering it, try to open it and then stop.
+8. If a long report is likely, render a lightweight layout preview before full querying. The preview must show structure and planned filters only, with `等待查询`, never fake data. After rendering it, try to open it and then stop.
+9. Only after the customer answers, or after the 5-minute recommended-choice fallback is explicitly applied, inspect live MCP schema and query real MCP data. Split date ranges over 31 days where required.
+10. Plan data sources, dedupe keys, join keys, privacy masking, and export gaps.
 11. Normalize data while preserving text IDs and front zeros. Never default missing metric values to 0.
 12. Aggregate one-to-many child tables before joining; never join raw receivable, allocation, actual-income, and payment rows directly.
 13. Reconcile official statistics and detail data; if they differ, show both, do not force a match.

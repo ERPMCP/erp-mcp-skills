@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.4 - 2026-07-15
+
+- Add a hard pre-confirmation gate that allows only connector checks, intent classification, and local reference/template reading before the first customer confirmation.
+- Forbid ERP business-data tools, sample pulls, pagination, JSON writes, and aggregate computation before the customer answers or the 5-minute recommended fallback is applied.
+- Update the house new-listing + listing-average-price case so it asks required choices before probing live ERP data.
+
 ## 2.1.3 - 2026-07-15
 
 - Use modal-style requirement confirmation HTML.

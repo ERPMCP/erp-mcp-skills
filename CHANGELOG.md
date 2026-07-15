@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.4 - 2026-07-15
+
+- Add a hard pre-confirmation gate: before the first customer question card, requirement wizard, or layout preview is shown and answered, the agent may only check ERP connector availability and read local references/templates.
+- Explicitly forbid `queryRptData`, `queryContractFinanceData`, `listHouseByCondition`, `getHouseByHouseNo`, section market tools, sample pulls, pagination, JSON writes, and aggregate computation before customer confirmation.
+- Update the house new-listing + listing-average-price scenario so it asks required choices first instead of probing live ERP data shape first.
+- Clarify that ERP MCP preflight is only a connection check, not permission to start business-data queries.
+
 ## 2.1.3 - 2026-07-15
 
 - Make requirement confirmation pages look like modal popups instead of ordinary pages.
