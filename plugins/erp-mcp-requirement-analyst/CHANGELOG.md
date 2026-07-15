@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2.4 - 2026-07-15
+
+- Prefer bundled capability references, TSV field matrix, export whitelist, and scenario templates for the first requirement page; inspect live MCP only when local references are insufficient or after confirmation.
+- Add top dashboard filters for keyword, region, business district, and community/project, and pass those filters to realtime Widget queries.
+- Make metrics with available detail clickable: embedded detail rows open locally, and realtime Widgets can call a detail tool to refresh the detail area.
+
 ## 2.2.3 - 2026-07-15
 
 - Make fast-first choice pages the actual workflow, not just a display cleanup.

@@ -1,6 +1,6 @@
 {
   "name": "erp-mcp-requirement-analyst",
-  "version": "2.2.3",
+  "version": "2.2.4",
   "description": "ERP MCP demand clarification, export guidance, connector preflight, MCP Apps realtime dashboards, and interactive HTML fallbacks for ERP customers.",
   "author": {
     "name": "ERP Skill Team"
