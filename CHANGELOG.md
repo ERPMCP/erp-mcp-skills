@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.4.1 - 2026-07-16
+
+- Keep `新房业务` and `全部业务` visible in the combined count-and-price question, with explicit price limitations, instead of silently narrowing the customer to buy or rent.
+- Require a second explicit choice before changing an unsupported business definition; no ERP query may start after selecting the unsupported option.
+
 ## 2.4.0 - 2026-07-15
 
 - Add a WorkBuddy `allowed-tools` hard allowlist so the common first-question path can only show the native question control or open the bundled Widget; direct ERP probes, file reads, shell commands, and business-data writes are unavailable to the Skill.

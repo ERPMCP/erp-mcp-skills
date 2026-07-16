@@ -7,7 +7,7 @@ This repository publishes the `erp-mcp-requirement-analyst` plugin. It helps ERP
 ## Plugin
 
 - Name: `erp-mcp-requirement-analyst`
-- Version: `2.4.0`
+- Version: `2.4.1`
 - Supports: WorkBuddy / CodeBuddy style plugin marketplace and Codex plugin marketplace
 - Main skill path: `plugins/erp-mcp-requirement-analyst/skills/erp-mcp-requirement-analyst/SKILL.md`
 

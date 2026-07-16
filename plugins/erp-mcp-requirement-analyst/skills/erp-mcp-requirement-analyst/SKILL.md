@@ -38,11 +38,15 @@ If business type or price method is missing, ask both in one response and stop:
 1. 房源类型
 A. 买卖房源（推荐）
 B. 租赁房源
+C. 新房业务（新增数量可查；当前挂牌均价查不到）
+D. 全部业务（新增数量可查；挂牌均价不能用同一种方式合并）
 
 2. 挂牌均价怎么算
-A. 每套房都算 1 套（推荐，容易核对）
-B. 大面积房源影响更大
+A. 每套房都算 1 套（推荐，容易核对；仅适用于买卖或租赁房源）
+B. 大面积房源影响更大（仅适用于买卖或租赁房源）
 ```
+
+If the customer selects `新房业务` or `全部业务`, do not silently replace it with buy or rent. Explain that the requested new-listing count can continue, but the current listing-average-price interface cannot produce the same requested combined result. Ask whether to continue with count only or change the business type, then stop without querying.
 
 ### Requested Filters Are Unclear
 
@@ -105,7 +109,7 @@ Do not call direct `erp` tools, including `queryRptData`, `listHouseByCondition`
 If `showErpDashboard` is unavailable, reply only:
 
 ```text
-实时看板组件没有加载。请把插件更新到 2.4.0 后执行 /reload-plugins，再新建任务重试。
+实时看板组件没有加载。请把插件更新到 2.4.1 后执行 /reload-plugins，再新建任务重试。
 ```
 
 Do not fall back to direct ERP calls or a `file:///` report.

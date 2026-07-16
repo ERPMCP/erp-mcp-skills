@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.1 - 2026-07-16
+
+- Add clearly labeled new-house and all-business choices to the count-plus-price question so unsupported price combinations remain visible and require explicit customer confirmation.
+
 ## 2.4.0 - 2026-07-15
 
 - Restrict the Skill to `AskUserQuestion` and the bundled `showErpDashboard` entry tool so WorkBuddy cannot repeat the direct-probe and `data.py` behavior shown in customer testing.

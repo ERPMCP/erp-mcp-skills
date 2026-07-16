@@ -1,6 +1,6 @@
 import { App } from "@modelcontextprotocol/ext-apps/app-with-deps";
 
-const app = new App({ name: "ERP 实时看板", version: "2.4.0" });
+const app = new App({ name: "ERP 实时看板", version: "2.4.1" });
 const state = {
   view: "organization",
   summary: null,

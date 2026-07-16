@@ -84,6 +84,8 @@ def test_skill_contract():
             raise SystemExit(f"forbidden first-turn tool leaked into allowlist: {forbidden}")
     for required in (
         "快速模式 2.4",
+        "新房业务（新增数量可查；当前挂牌均价查不到）",
+        "全部业务（新增数量可查；挂牌均价不能用同一种方式合并）",
         "After asking any question, stop the turn",
         "Never translate an unavailable request into a nearby available field",
         "按公司部门和人员看",
