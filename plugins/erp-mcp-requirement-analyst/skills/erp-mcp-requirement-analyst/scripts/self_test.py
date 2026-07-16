@@ -86,6 +86,8 @@ def test_skill_contract():
         "快速模式 2.4",
         "新房业务（新增数量可查；当前挂牌均价查不到）",
         "全部业务（新增数量可查；挂牌均价不能用同一种方式合并）",
+        "按面积计算均价（推荐）：先算每套房单价，再按面积大小综合；大面积房源影响更大，适合看市场均价。",
+        "按套数简单平均：每套房都算一票；小房子和大房子影响一样，适合快速粗略核对。",
         "After asking any question, stop the turn",
         "Never translate an unavailable request into a nearby available field",
         "按公司部门和人员看",

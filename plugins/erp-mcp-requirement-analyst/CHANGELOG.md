@@ -1,4 +1,8 @@
 # Changelog
+## 2.4.3 - 2026-07-16
+
+- Expand native popup labels for price methods and filter choices into full plain-Chinese explanations, so WorkBuddy cannot show only terse terms such as `面积加权` or `套数算术平均`.
+- Mirror the updated Skill into the legacy local install folder that WorkBuddy was still loading during testing, removing the stale `house_new_listing_price_case.md` path from that install source.
 ## 2.4.2 - 2026-07-16
 
 - Make the bundled dashboard proxy fall back to the existing `FANGLINE_MCP_TOKEN` environment variable and default ERP MCP URL, so local installs can load the Widget entry without copying secrets into config files.

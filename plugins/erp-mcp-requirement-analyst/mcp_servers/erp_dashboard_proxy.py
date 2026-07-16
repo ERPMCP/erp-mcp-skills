@@ -11,7 +11,7 @@ from pathlib import Path
 
 WIDGET_URI = "ui://erp/dashboard"
 SERVER_NAME = "erp-dashboard-proxy"
-SERVER_VERSION = "2.4.2"
+SERVER_VERSION = "2.4.3"
 PROTOCOL_VERSION = "2025-06-18"
 WIDGET_PATH = Path(__file__).resolve().parent / "widget" / "dist" / "index.html"
 

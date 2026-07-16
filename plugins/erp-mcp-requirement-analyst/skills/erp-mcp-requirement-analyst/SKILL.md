@@ -111,7 +111,7 @@ Do not call direct `erp` tools, including `queryRptData`, `listHouseByCondition`
 If `showErpDashboard` is unavailable, reply only:
 
 ```text
-实时看板组件没有加载。请把插件更新到 2.4.2 后执行 /reload-plugins，再新建任务重试。
+实时看板组件没有加载。请把插件更新到 2.4.3 后执行 /reload-plugins，再新建任务重试。
 ```
 
 Do not fall back to direct ERP calls or a `file:///` report.
