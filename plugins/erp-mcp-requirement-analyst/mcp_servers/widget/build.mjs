@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const root = dirname(fileURLToPath(import.meta.url));
 const result = await build({
   absWorkingDir: root,
-  entryPoints: ["./src/main.js"],
+  entryPoints: ["././src/main.js"],
   bundle: true,
   format: "iife",
   platform: "browser",

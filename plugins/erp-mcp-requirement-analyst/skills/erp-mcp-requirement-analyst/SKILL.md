@@ -21,10 +21,10 @@ If business type is missing, ask exactly one question and stop:
 ```text
 快速模式 2.4
 要统计哪类房源？
-A. 买卖房源（推荐）
-B. 租赁房源
-C. 新房业务
-D. 全部业务
+A. 买卖房源（推荐，二手房出售）
+B. 租赁房源（出租房源）
+C. 新房业务（新房项目相关数据）
+D. 全部业务（买卖、租赁、新房都算；如果后面要算均价，可能不能合并）
 ```
 
 ### Count Plus Listing Average Price
@@ -36,14 +36,14 @@ If business type or price method is missing, ask both in one response and stop:
 请确认两项，确认后马上先给你新增数量和实时看板：
 
 1. 房源类型
-A. 买卖房源（推荐）
-B. 租赁房源
+A. 买卖房源（推荐，二手房出售）
+B. 租赁房源（出租房源）
 C. 新房业务（新增数量可查；当前挂牌均价查不到）
 D. 全部业务（新增数量可查；挂牌均价不能用同一种方式合并）
 
 2. 挂牌均价怎么算
-A. 每套房都算 1 套（推荐，容易核对；仅适用于买卖或租赁房源）
-B. 大面积房源影响更大（仅适用于买卖或租赁房源）
+A. 按面积计算均价（推荐）：先算每套房单价，再按面积大小综合；大面积房源影响更大，适合看市场均价。
+B. 按套数简单平均：每套房都算一票；小房子和大房子影响一样，适合快速粗略核对。
 ```
 
 If the customer selects `新房业务` or `全部业务`, do not silently replace it with buy or rent. Explain that the requested new-listing count can continue, but the current listing-average-price interface cannot produce the same requested combined result. Ask whether to continue with count only or change the business type, then stop without querying.
@@ -55,16 +55,18 @@ If the customer asks for `多层级筛选`, `按层级筛选`, or other filters 
 ```text
 3. 页面里需要哪些筛选入口？
 A. 两类都要（推荐）
-   可按公司部门和人员查看，也可按房源所在位置查看；页面会分开说明两个数字的统计方式。
+   页面分成两个入口：既能按公司部门/人员看“是谁、哪个店带来的数量”，也能按房源位置看“房子在哪个区域、商圈、小区”。
 B. 只按公司部门和人员看
-   例如全公司、部门、门店或员工。月度新增数量可以这样筛；当前挂牌均价不能按这类条件筛。
+   适合问“哪个大区、门店、员工的新上房源多”。例：全公司、大区、片区、门店、员工。月度新增数量可以这样筛；当前挂牌均价不能按这类条件筛。
 C. 只按房源所在位置看
-   例如区域、商圈或小区。当前新上总数和挂牌均价可以这样筛；月度新增数量不能按这类条件筛。
+   适合问“哪个区域、商圈、小区的新上房源多、挂牌均价多少”。例：区域、商圈、小区。当前新上总数和挂牌均价可以这样筛；月度新增数量不能按这类条件筛。
 D. 不需要额外筛选
-   只看所选月份、业务类型和全公司汇总。
+   只看所选月份、业务类型和全公司汇总，速度最快。
 ```
 
 Keep the native `其他补充` entry so the customer can type a custom filter. Before accepting a custom filter, state whether it is directly available, available with a limitation, or unavailable. Never claim that a custom filter works until the proxy supports it.
+
+Every native popup option must be self-explanatory. Do not show short labels such as `加权均价`, `简单平均`, `组织层级`, or `地理层级` without a same-line plain Chinese explanation. Assume the customer does not know ERP terms. Prefer longer option labels over making the customer guess.
 
 When the ERP result or a dedicated option tool can enumerate filter values, the Widget must use a dropdown. Do not replace an available department, store, person, region, business-district, or community list with a plain search box to save implementation work. This remains mandatory even when there are dozens or hundreds of values, such as 72 branches. For a large list, put search inside the dropdown; search may help narrow the list but may not replace the list. Use dependent dropdowns for parent-child values such as region -> business district -> community. Use free text only when the MCP truly cannot enumerate a complete option set, and explain that limitation beside the field.
 
@@ -109,7 +111,7 @@ Do not call direct `erp` tools, including `queryRptData`, `listHouseByCondition`
 If `showErpDashboard` is unavailable, reply only:
 
 ```text
-实时看板组件没有加载。请把插件更新到 2.4.1 后执行 /reload-plugins，再新建任务重试。
+实时看板组件没有加载。请把插件更新到 2.4.2 后执行 /reload-plugins，再新建任务重试。
 ```
 
 Do not fall back to direct ERP calls or a `file:///` report.

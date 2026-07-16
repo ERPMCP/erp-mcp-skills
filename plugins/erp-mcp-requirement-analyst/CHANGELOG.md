@@ -1,5 +1,8 @@
 # Changelog
+## 2.4.2 - 2026-07-16
 
+- Make the bundled dashboard proxy fall back to the existing `FANGLINE_MCP_TOKEN` environment variable and default ERP MCP URL, so local installs can load the Widget entry without copying secrets into config files.
+- Document the local-install fix for cases where WorkBuddy kept loading an older `~/.codex/skills` copy and continued direct ERP probes before showing the fast question.
 ## 2.4.1 - 2026-07-16
 
 - Add clearly labeled new-house and all-business choices to the count-plus-price question so unsupported price combinations remain visible and require explicit customer confirmation.

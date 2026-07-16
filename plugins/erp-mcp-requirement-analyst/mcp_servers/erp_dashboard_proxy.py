@@ -11,7 +11,7 @@ from pathlib import Path
 
 WIDGET_URI = "ui://erp/dashboard"
 SERVER_NAME = "erp-dashboard-proxy"
-SERVER_VERSION = "2.4.1"
+SERVER_VERSION = "2.4.2"
 PROTOCOL_VERSION = "2025-06-18"
 WIDGET_PATH = Path(__file__).resolve().parent / "widget" / "dist" / "index.html"
 
@@ -216,11 +216,14 @@ def parse_month(args):
 
 
 def upstream_url():
-    return os.environ.get("ERP_MCP_URL", "").strip()
+    return os.environ.get("ERP_MCP_URL", "https://portal.fangline.cn/mcp").strip()
 
 
 def upstream_token():
-    token = os.environ.get("ERP_MCP_TOKEN", "").strip()
+    token = (
+        os.environ.get("ERP_MCP_TOKEN", "").strip()
+        or os.environ.get("FANGLINE_MCP_TOKEN", "").strip()
+    )
     return token[7:].strip() if token.startswith("Bearer ") else token
 
 
