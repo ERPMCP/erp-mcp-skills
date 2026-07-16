@@ -1,4 +1,9 @@
 # Changelog
+## 2.4.5 - 2026-07-16
+
+- Replace blocking WorkBuddy native clarification cards with the live Widget confirmation flow for fast new-listing requests.
+- Add a five-minute Widget countdown that automatically continues with recommended choices without probing ERP before confirmation.
+
 ## 2.4.4 - 2026-07-16
 
 - Require exact native WorkBuddy option labels for listing-average-price choices, with the explanation inside the visible label itself.

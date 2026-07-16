@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "fangline-erp-skills",
   "interface": {
     "displayName": "Fangline ERP Skills"
@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "erp-mcp-requirement-analyst",
-      "version": "2.4.4",
+      "version": "2.4.5",
       "source": {
         "source": "local",
         "path": "./plugins/erp-mcp-requirement-analyst"

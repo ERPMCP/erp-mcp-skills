@@ -44,6 +44,11 @@ h2 { margin: 0; font-size: 18px; line-height: 1.3; }
 .badge { flex: 0 0 auto; padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--surface); font-size: 12px; }
 .badge.ready { color: var(--green); border-color: color-mix(in srgb, var(--green) 35%, var(--line)); }
 .badge.error { color: var(--red); border-color: color-mix(in srgb, var(--red) 35%, var(--line)); }
+.confirm-panel { min-width: 0; margin: 18px 0; padding: 18px; border: 1px solid color-mix(in srgb, var(--blue) 35%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--blue-soft) 55%, var(--surface)); box-shadow: var(--shadow); }
+.confirm-copy p:not(.eyebrow) { margin: 8px 0 0; color: var(--muted); line-height: 1.6; }
+.confirm-grid { min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.confirm-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+#confirmCountdown { color: var(--muted); font-size: 13px; }
 .view-switch { min-width: 0; max-width: 100%; display: inline-flex; gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); margin-bottom: 12px; }
 .view-button { min-width: 0; min-height: 52px; border: 0; border-radius: 6px; padding: 7px 14px; background: transparent; color: var(--muted); overflow-wrap: anywhere; text-align: left; }
 .view-button strong, .view-button small { display: block; letter-spacing: 0; }
@@ -98,7 +103,7 @@ th { position: sticky; top: 0; background: var(--surface-soft); color: var(--mut
   .badge { display: inline-block; margin-top: 12px; }
   .view-switch { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
   .view-button { height: auto; min-height: 42px; padding: 7px 8px; line-height: 1.3; white-space: normal; }
-  .filter-grid, .result-layout { grid-template-columns: 1fr; }
+  .filter-grid, .confirm-grid, .result-layout { grid-template-columns: 1fr; }
   .filter-actions { align-items: stretch; flex-direction: column; }
   .primary { width: 100%; }
   .metric-value { font-size: 34px; }

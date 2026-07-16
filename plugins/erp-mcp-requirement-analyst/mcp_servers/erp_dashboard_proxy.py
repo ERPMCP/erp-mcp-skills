@@ -11,9 +11,10 @@ from pathlib import Path
 
 WIDGET_URI = "ui://erp/dashboard"
 SERVER_NAME = "erp-dashboard-proxy"
-SERVER_VERSION = "2.4.4"
+SERVER_VERSION = "2.4.5"
 PROTOCOL_VERSION = "2025-06-18"
 WIDGET_PATH = Path(__file__).resolve().parent / "widget" / "dist" / "index.html"
+CONFIRMATION_DEFAULT_SECONDS = 300
 
 SESSION_ID = ""
 SESSION_INITIALIZED = False
@@ -82,7 +83,7 @@ FILTER_SCHEMA = {
         "priceMethod": {
             "type": "string",
             "enum": ["equal_weight", "area_weighted"],
-            "default": "equal_weight",
+            "default": "area_weighted",
         },
         "filterMode": {
             "type": "string",
@@ -94,6 +95,17 @@ FILTER_SCHEMA = {
         "districtName": {"type": "string"},
         "zoneName": {"type": "string"},
         "sectionLike": {"type": "string"},
+        "confirmationMode": {
+            "type": "string",
+            "enum": ["none", "auto_recommended"],
+            "default": "none",
+        },
+        "autoContinueSeconds": {
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 1800,
+            "default": CONFIRMATION_DEFAULT_SECONDS,
+        },
     },
 }
 
@@ -401,6 +413,60 @@ def waiting_price_metric(args):
         "display": "点击后计算",
         "priceMethod": args.get("priceMethod", "equal_weight"),
         "message": "先显示新增数量；点击计算后才读取价格和面积字段。",
+    }
+
+
+def confirmation_pending(args):
+    start, end, month_label = parse_month(args)
+    business_type = args.get("businessType") or "sell"
+    _, _, business_label = business_values(business_type)
+    include_price = bool(args.get("includeReferencePrice")) or args.get("scenario") == "house_new_listing_price"
+    price_method = args.get("priceMethod") or "area_weighted"
+    filter_mode = args.get("filterMode") or "both"
+    seconds = int(args.get("autoContinueSeconds") or CONFIRMATION_DEFAULT_SECONDS)
+    seconds = min(1800, max(10, seconds))
+    return {
+        "phase": "CONFIRMATION_PENDING",
+        "autoContinueSeconds": seconds,
+        "filters": {
+            "scenario": args.get("scenario", "house_new_listing_count"),
+            "metricId": "monthlyNewListingCount",
+            "month": args.get("month", "上月"),
+            "startDate": start,
+            "endDate": end,
+            "monthLabel": month_label,
+            "businessType": business_type,
+            "businessLabel": business_label,
+            "includeReferencePrice": include_price,
+            "priceMethod": price_method,
+            "filterMode": filter_mode,
+            "deptName": clean_option(args.get("deptName")),
+            "userName": clean_option(args.get("userName")),
+        },
+        "filterOptions": LAST_FILTER_OPTIONS,
+        "metrics": {
+            "primary": {
+                "id": "monthlyNewListingCount",
+                "label": f"{month_label}新上房源数量",
+                "display": "确认后查询",
+                "drilldown": {"available": False, "reason": "尚未查询。"},
+            }
+        },
+        "confirmation": {
+            "title": "请先确认统计口径",
+            "message": "这一步不会读取 ERP 数据。你可以直接采用推荐项；如果不操作，页面会自动采用推荐项继续。",
+            "recommended": {
+                "businessType": "sell",
+                "priceMethod": "area_weighted",
+                "filterMode": "both",
+            },
+            "businessTypeHelp": "房源类型会直接影响新增数量。推荐先看买卖房源，也就是二手房出售。",
+            "priceMethodHelp": "挂牌均价只有点击计算时才读取价格字段。推荐按面积计算，更接近市场均价。",
+            "filterModeHelp": "筛选入口只决定页面后续有哪些按钮和下拉框，不会在确认页预取明细。",
+        },
+        "message": "确认页已打开，暂未读取 ERP 数据。",
+        "plainRule": "请检查口径；到时未选择会自动采用推荐项继续。",
+        "technical": {"erpCallsBeforeConfirmation": 0, "detailRowsFetched": 0},
     }
 
 
@@ -851,7 +917,14 @@ def handle_call(msg):
         name = params.get("name")
         args = params.get("arguments") or {}
         if name == "showErpDashboard":
-            summary = query_summary(args)
+            if args.get("confirmationMode") == "auto_recommended":
+                summary = text_result(
+                    "确认页已打开，暂未读取 ERP 数据。",
+                    confirmation_pending(args),
+                    attach_widget=True,
+                )
+            else:
+                summary = query_summary(args)
             summary["_meta"] = {"ui": {"resourceUri": WIDGET_URI}}
             result(msg, summary)
         elif name == "queryErpDashboardSummary":

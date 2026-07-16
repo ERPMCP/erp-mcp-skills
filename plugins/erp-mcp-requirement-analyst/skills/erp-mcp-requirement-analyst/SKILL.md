@@ -1,7 +1,7 @@
 ---
 name: erp-mcp-requirement-analyst
 description: Fast ERP question clarification and live MCP Apps dashboard. Use when customers ask for new-listing counts, listing prices, ERP summary numbers, filters, or clickable drilldowns. Ask only result-changing questions first, return a verified summary through the bundled proxy, and never preload full records.
-allowed-tools: AskUserQuestion, mcp__erp_dashboard_proxy__showErpDashboard
+allowed-tools: mcp__erp_dashboard_proxy__showErpDashboard
 ---
 
 # ERP MCP Fast Answer
@@ -12,7 +12,11 @@ For requests containing `新上房源`, `新增房源`, `新上数量`, or `挂�
 
 Do not call any ERP or MCP tool before the required definitions are confirmed. Do not inspect live fields, run samples, probe one page, create a plan, write code, or narrate internal work.
 
-Use `AskUserQuestion` so the customer can click an option. Prefix the question with `快速模式 2.4.4` so the customer can verify that the new Skill is loaded.
+Never use `AskUserQuestion` for these fast ERP cases. WorkBuddy native question cards can wait forever and cannot run a five-minute auto-continue timer. The bundled MCP Apps Widget owns all clarification, countdown, defaults, and follow-up queries.
+
+When a required definition is missing but a safe recommendation exists, immediately call `mcp__erp_dashboard_proxy__showErpDashboard` with `confirmationMode=auto_recommended` and `autoContinueSeconds=300`. This opens the Apple-style confirmation Widget without reading ERP data. The Widget lets the customer change choices, and if they do nothing for five minutes it automatically continues with the recommended choices.
+
+The Widget confirmation page must show `快速模式 2.4.5` so the customer can verify that the new Skill is loaded.
 
 For native WorkBuddy question cards, the visible option `label` itself must contain the explanation. Do not rely on hidden descriptions or later chat text, because WorkBuddy may show only the label. Do not shorten, paraphrase, or rename these labels.
 
@@ -20,24 +24,30 @@ Forbidden visible option labels: `每套等权平均`, `面积加权平均`, `�
 
 ### Count Only
 
-If business type is missing, ask exactly one question and stop:
+If business type is missing, do not open a native question card. Call `showErpDashboard` with `confirmationMode=auto_recommended`, `autoContinueSeconds=300`, `scenario=house_new_listing_count`, `businessType=sell`, and `filterMode=both`.
+
+The Widget must show this customer-facing choice copy:
 
 ```text
-快速模式 2.4.4
+快速模式 2.4.5
 要统计哪类房源？
 A. 买卖房源（推荐，二手房出售）
 B. 租赁房源（出租房源）
 C. 新房业务（新房项目相关数据）
 D. 全部业务（买卖、租赁、新房都算；如果后面要算均价，可能不能合并）
+
+5 分钟内不选择，会自动采用推荐项继续：买卖房源。
 ```
 
 ### Count Plus Listing Average Price
 
-If business type or price method is missing, ask both in one response and stop:
+If business type or price method is missing, do not open a native question card. Call `showErpDashboard` with `confirmationMode=auto_recommended`, `autoContinueSeconds=300`, `scenario=house_new_listing_price`, `includeReferencePrice=true`, `businessType=sell`, `priceMethod=area_weighted`, and `filterMode=both`.
+
+The Widget must show this customer-facing choice copy:
 
 ```text
-快速模式 2.4.4
-请确认两项，确认后马上先给你新增数量和实时看板：
+快速模式 2.4.5
+请确认两项。确认前不会读取 ERP 数据；确认后先给你新增数量和实时看板：
 
 1. 房源类型
 A. 买卖房源（推荐，二手房出售）
@@ -48,15 +58,17 @@ D. 全部业务（新增数量可查；挂牌均价不能用同一种方式合�
 2. 挂牌均价怎么算
 A. 按面积计算均价（推荐，先算每套房单价，再按面积大小综合；大面积房源影响更大，适合看市场均价）
 B. 按套数简单平均（每套房都算一票；小房子和大房子影响一样，适合快速粗略核对）
+
+5 分钟内不选择，会自动采用推荐项继续：买卖房源 + 按面积计算均价。
 ```
 
 The two price-method option labels must be exactly the two labels above. If a native UI seems too narrow, keep the exact labels anyway; do not replace them with `每套等权平均` or `面积加权平均`.
 
-If the customer selects `新房业务` or `全部业务`, do not silently replace it with buy or rent. Explain that the requested new-listing count can continue, but the current listing-average-price interface cannot produce the same requested combined result. Ask whether to continue with count only or change the business type, then stop without querying.
+If the customer selects `新房业务` or `全部业务`, do not silently replace it with buy or rent. The Widget must explain that the requested new-listing count can continue, but the current listing-average-price interface cannot produce the same requested combined result. It must wait for the customer to continue with count only or change the business type.
 
 ### Requested Filters Are Unclear
 
-If the customer asks for `多层级筛选`, `按层级筛选`, or other filters without naming the dimensions, include this question in the same first popup:
+If the customer asks for `多层级筛选`, `按层级筛选`, or other filters without naming the dimensions, include this choice in the same Widget confirmation page:
 
 ```text
 3. 页面里需要哪些筛选入口？
@@ -76,7 +88,7 @@ Every native popup option must be self-explanatory. Do not show short labels suc
 
 When the ERP result or a dedicated option tool can enumerate filter values, the Widget must use a dropdown. Do not replace an available department, store, person, region, business-district, or community list with a plain search box to save implementation work. This remains mandatory even when there are dozens or hundreds of values, such as 72 branches. For a large list, put search inside the dropdown; search may help narrow the list but may not replace the list. Use dependent dropdowns for parent-child values such as region -> business district -> community. Use free text only when the MCP truly cannot enumerate a complete option set, and explain that limitation beside the field.
 
-Ask this filter question only when the customer requested filters but left their meaning unclear. If the customer named exact filters, preserve them and state their availability. If no filters were requested, do not delay the first number merely to ask about optional filters.
+Ask this filter choice only when the customer requested filters but left their meaning unclear. If the customer named exact filters, preserve them and state their availability. If no filters were requested, do not delay the first number merely to ask about optional filters; use the recommended Widget defaults and let the customer change filters after the first number.
 
 Do not ask about sorting, export, detail columns, or page style before the first number. These do not change the core result and can be offered in the Widget later.
 
@@ -93,15 +105,15 @@ Skip the question only after checking that the request has one reasonable interp
 
 If another plausible interpretation would change the number, ask. This remains mandatory when that interpretation uses a field the current MCP cannot query. Show the unsupported choice honestly, for example `合同录入时间（当前接口查不到）`, instead of hiding it or silently choosing a supported substitute.
 
-Never translate an unavailable request into a nearby available field without confirmation. If the customer selects an unavailable definition, say exactly what cannot be obtained, present the closest valid alternative separately, and wait for explicit approval before using it.
+Never translate an unavailable request into a nearby available field without confirmation. If the customer selects an unavailable definition, say exactly what cannot be obtained, present the closest valid alternative separately, and wait for explicit approval before using it. Do this inside the Widget when possible; do not fall back to a native `AskUserQuestion` card.
 
 Do not ask about decorative or optional features that do not change the first number. Those belong in the Widget after the quick result.
 
-After asking any question, stop the turn. A selected business type or price method is only an option answer; it is not permission to probe or preload data.
+After opening a confirmation Widget, stop the chat turn. Do not probe or preload data in chat. The Widget is responsible for waiting, auto-continuing after five minutes, and then querying only the summary number.
 
 ## Only Allowed Initial Data Call
 
-After the user answers all required questions, call only `mcp__erp_dashboard_proxy__showErpDashboard`.
+Call only `mcp__erp_dashboard_proxy__showErpDashboard` from chat.
 
 Pass:
 
@@ -111,13 +123,15 @@ Pass:
 - confirmed `priceMethod` when price was requested;
 - confirmed `filterMode` when the customer requested filters;
 - `month=上月` unless the customer selected another month.
+- `confirmationMode=auto_recommended` and `autoContinueSeconds=300` when the customer has not explicitly confirmed every result-changing definition.
+- `confirmationMode=none` only when the user already supplied every result-changing definition and there is no plausible alternative.
 
 Do not call direct `erp` tools, including `queryRptData`, `listHouseByCondition`, `queryContractFinanceData`, or any schema/probe tool. The bundled proxy calls the required upstream ERP tool internally and attaches the real MCP Apps Widget.
 
 If `showErpDashboard` is unavailable, reply only:
 
 ```text
-实时看板组件没有加载。请把插件更新到 2.4.4 后执行 /reload-plugins，再新建任务重试。
+实时看板组件没有加载。请把插件更新到 2.4.5 后执行 /reload-plugins，再新建任务重试。
 ```
 
 Do not fall back to direct ERP calls or a `file:///` report.
@@ -151,6 +165,7 @@ For listing average price, show the monthly count and Widget first. The Widget d
 
 - English progress narration;
 - `Let me read`, `probe`, `schema`, `deep thinking`, or tool-planning text;
+- WorkBuddy native `AskUserQuestion` clarification cards for fast ERP new-listing requests;
 - raw JSON, personnel rows, house rows, or Python list literals in chat;
 - any generated business-data `.py` or `.json` file;
 - full-data pagination before a real Widget action;

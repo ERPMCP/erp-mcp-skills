@@ -1,14 +1,17 @@
 import { App } from "@modelcontextprotocol/ext-apps/app-with-deps";
 
-const app = new App({ name: "ERP 实时看板", version: "2.4.4" });
+const app = new App({ name: "ERP 实时看板", version: "2.4.5" });
 const state = {
   view: "organization",
   summary: null,
+  confirmation: null,
+  confirmationTimer: null,
+  confirmationRemaining: 0,
   detailPage: 0,
   detailRows: [],
   connected: false,
   includeReferencePrice: false,
-  priceMethod: "equal_weight",
+  priceMethod: "area_weighted",
   locationRows: [],
   locationOptionsFor: "",
   loadingLocationOptions: false,
@@ -24,6 +27,9 @@ const elements = {
   metricStatus: $("metricStatus"), metricValue: $("metricValue"), metricRule: $("metricRule"), metricHelp: $("metricHelp"),
   secondaryMetric: $("secondaryMetric"), secondaryLabel: $("secondaryLabel"), secondaryValue: $("secondaryValue"),
   secondaryRule: $("secondaryRule"), calculatePrice: $("calculatePrice"),
+  confirmPanel: $("confirmPanel"), confirmBusinessType: $("confirmBusinessType"), confirmPriceMethod: $("confirmPriceMethod"),
+  confirmFilterMode: $("confirmFilterMode"), confirmStart: $("confirmStart"), confirmRecommended: $("confirmRecommended"),
+  confirmCountdown: $("confirmCountdown"),
   detailSection: $("detailSection"), detailMessage: $("detailMessage"), tableWrap: $("tableWrap"), detailHead: $("detailHead"),
   detailBody: $("detailBody"), loadMore: $("loadMore"), closeDetails: $("closeDetails"), error: $("errorPanel"),
   technical: $("technicalText"),
@@ -124,6 +130,104 @@ function setSelectValue(select, value) {
   if (value && [...select.options].some((option) => option.value === value)) select.value = value;
 }
 
+function clearConfirmationTimer() {
+  if (state.confirmationTimer) window.clearInterval(state.confirmationTimer);
+  state.confirmationTimer = null;
+}
+
+function formatRemaining(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return `${minutes}分${String(rest).padStart(2, "0")}秒后自动采用推荐项继续`;
+}
+
+function recommendedConfirmation() {
+  return state.confirmation?.confirmation?.recommended || {
+    businessType: "sell",
+    priceMethod: "area_weighted",
+    filterMode: "both",
+  };
+}
+
+function applyRecommendedConfirmation() {
+  const recommended = recommendedConfirmation();
+  elements.confirmBusinessType.value = recommended.businessType || "sell";
+  elements.confirmPriceMethod.value = recommended.priceMethod || "area_weighted";
+  elements.confirmFilterMode.value = recommended.filterMode || "both";
+}
+
+function confirmationArguments() {
+  const filters = state.confirmation?.filters || {};
+  const businessType = elements.confirmBusinessType.value || filters.businessType || "sell";
+  const priceMethod = elements.confirmPriceMethod.value || filters.priceMethod || "area_weighted";
+  const filterMode = elements.confirmFilterMode.value || filters.filterMode || "both";
+  return {
+    ...filters,
+    businessType,
+    priceMethod,
+    filterMode,
+    scenario: filters.includeReferencePrice ? "house_new_listing_price" : filters.scenario || "house_new_listing_count",
+    includeReferencePrice: filters.includeReferencePrice === true,
+  };
+}
+
+async function runConfirmedSummary(auto = false) {
+  clearConfirmationTimer();
+  elements.confirmStart.disabled = true;
+  elements.confirmRecommended.disabled = true;
+  elements.confirmCountdown.textContent = auto ? "已自动采用推荐项，正在查询汇总数字…" : "正在查询汇总数字…";
+  state.includeReferencePrice = (state.confirmation?.filters?.includeReferencePrice === true);
+  state.priceMethod = elements.confirmPriceMethod.value || "area_weighted";
+  try {
+    const result = await app.callServerTool({ name: "queryErpDashboardSummary", arguments: confirmationArguments() });
+    elements.confirmPanel.classList.add("hidden");
+    renderSummary(result.structuredContent || {});
+  } catch (error) {
+    elements.confirmStart.disabled = false;
+    elements.confirmRecommended.disabled = false;
+    showError(error?.message || String(error));
+  }
+}
+
+function startConfirmationTimer(seconds) {
+  clearConfirmationTimer();
+  state.confirmationRemaining = Math.max(10, Number(seconds) || 300);
+  elements.confirmCountdown.textContent = formatRemaining(state.confirmationRemaining);
+  state.confirmationTimer = window.setInterval(() => {
+    state.confirmationRemaining -= 1;
+    if (state.confirmationRemaining <= 0) {
+      applyRecommendedConfirmation();
+      runConfirmedSummary(true);
+      return;
+    }
+    elements.confirmCountdown.textContent = formatRemaining(state.confirmationRemaining);
+  }, 1000);
+}
+
+function renderConfirmation(data) {
+  state.confirmation = data;
+  clearError();
+  closeDetails();
+  elements.confirmPanel.classList.remove("hidden");
+  elements.confirmStart.disabled = false;
+  elements.confirmRecommended.disabled = false;
+  elements.summary.textContent = data.message || "请先确认统计口径；确认前不会读取 ERP 数据。";
+  setConnection("pending", "等待确认");
+  elements.metricLabel.textContent = data.metrics?.primary?.label || "新上房源数量";
+  elements.metricValue.textContent = "确认后查询";
+  elements.metricValue.classList.remove("clickable");
+  elements.metricValue.dataset.drillable = "false";
+  elements.metricStatus.textContent = "未查询";
+  elements.metricRule.textContent = data.plainRule || "确认前不会读取 ERP 数据。";
+  elements.metricHelp.dataset.reason = "确认后先查汇总数字；点击蓝色数字时才读取明细。";
+  elements.technical.textContent = JSON.stringify(data.technical || { erpCallsBeforeConfirmation: 0 }, null, 2);
+  applyIncomingFilters(data.filters);
+  setSelectValue(elements.confirmBusinessType, data.filters?.businessType);
+  setSelectValue(elements.confirmPriceMethod, data.filters?.priceMethod || "area_weighted");
+  setSelectValue(elements.confirmFilterMode, data.filters?.filterMode || "both");
+  startConfirmationTimer(data.autoContinueSeconds || 300);
+}
+
 function applyIncomingFilters(filters = {}) {
   setSelectValue(elements.month, filters.month);
   setSelectValue(elements.businessType, filters.businessType);
@@ -134,7 +238,7 @@ function applyIncomingFilters(filters = {}) {
   if (filters.zoneName) elements.zoneName.value = filters.zoneName;
   if (filters.sectionLike) elements.sectionLike.value = filters.sectionLike;
   state.includeReferencePrice = filters.includeReferencePrice === true || filters.scenario === "house_new_listing_price";
-  state.priceMethod = filters.priceMethod || "equal_weight";
+  state.priceMethod = filters.priceMethod || "area_weighted";
 }
 
 function renderSecondary(metric = {}) {
@@ -164,6 +268,8 @@ function renderSecondary(metric = {}) {
 
 function renderSummary(data) {
   if (!data || !data.metrics) return;
+  clearConfirmationTimer();
+  elements.confirmPanel.classList.add("hidden");
   state.summary = data;
   clearError();
   applyFilterOptions(data.filterOptions);
@@ -335,6 +441,11 @@ elements.orgView.addEventListener("click", () => switchView("organization"));
 elements.locationView.addEventListener("click", () => switchView("location"));
 elements.refresh.addEventListener("click", refreshSummary);
 elements.calculatePrice.addEventListener("click", calculatePrice);
+elements.confirmStart.addEventListener("click", () => runConfirmedSummary(false));
+elements.confirmRecommended.addEventListener("click", () => {
+  applyRecommendedConfirmation();
+  runConfirmedSummary(false);
+});
 elements.locationBusinessType.addEventListener("change", () => loadLocationOptions(true));
 elements.districtName.addEventListener("change", updateZoneOptions);
 elements.zoneName.addEventListener("change", updateSectionOptions);
@@ -346,7 +457,8 @@ elements.loadMore.addEventListener("click", () => loadDetails(state.detailPage +
 app.ontoolinput = (params) => applyIncomingFilters(params.arguments || {});
 app.ontoolresult = (params) => {
   const data = params.structuredContent || {};
-  if (data.metrics) renderSummary(data);
+  if (data.phase === "CONFIRMATION_PENDING") renderConfirmation(data);
+  else if (data.metrics) renderSummary(data);
   else if (data.secondaryMetric) renderSecondary(data.secondaryMetric);
 };
 

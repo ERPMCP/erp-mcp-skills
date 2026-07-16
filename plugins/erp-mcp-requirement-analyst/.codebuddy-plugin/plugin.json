@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "erp-mcp-requirement-analyst",
-  "version": "2.4.4",
+  "version": "2.4.5",
   "description": "ERP MCP先问关键定义、快速返回汇总、页面按需计算与点击读取明细助手",
   "skills": [
     "./skills/"

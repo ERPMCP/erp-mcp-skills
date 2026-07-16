@@ -18,6 +18,43 @@
       <span id="connectionBadge" class="badge pending">正在连接</span>
     </header>
 
+    <section id="confirmPanel" class="confirm-panel hidden" aria-live="polite">
+      <div class="confirm-copy">
+        <p class="eyebrow">快速确认</p>
+        <h2>先确认口径，再开始查数</h2>
+        <p>这一步不会读取 ERP 数据。你可以改下面的选项，也可以直接采用推荐项；如果不操作，页面会自动采用推荐项继续。</p>
+      </div>
+      <div class="confirm-grid">
+        <label class="field">房源类型
+          <select id="confirmBusinessType">
+            <option value="sell">买卖房源（二手房出售，推荐先看这个）</option>
+            <option value="rent">租赁房源（出租房源）</option>
+            <option value="new_house">新房业务（新增数量可查；当前挂牌均价查不到）</option>
+            <option value="all">全部业务（新增数量可查；挂牌均价不能用同一种方式合并）</option>
+          </select>
+        </label>
+        <label class="field">挂牌均价算法
+          <select id="confirmPriceMethod">
+            <option value="area_weighted">按面积计算均价（推荐，大面积房源影响更大，更适合看市场均价）</option>
+            <option value="equal_weight">按套数简单平均（每套房都算一票，适合快速粗略核对）</option>
+          </select>
+        </label>
+        <label class="field">页面筛选入口
+          <select id="confirmFilterMode">
+            <option value="both">两类都要：公司部门/人员 + 房源区域/商圈/小区</option>
+            <option value="organization">只按公司部门和人员看：全公司、门店、员工</option>
+            <option value="location">只按房源所在位置看：区域、商圈、小区</option>
+            <option value="none">不需要额外筛选，只看汇总数字</option>
+          </select>
+        </label>
+      </div>
+      <div class="confirm-actions">
+        <button id="confirmStart" class="primary" type="button">采用当前设置，开始查询</button>
+        <button id="confirmRecommended" class="secondary" type="button">恢复推荐项</button>
+        <span id="confirmCountdown">5 分钟后自动采用推荐项继续</span>
+      </div>
+    </section>
+
     <nav class="view-switch" aria-label="选择查看方式">
       <button id="orgView" class="view-button active" type="button"><strong>按公司部门和人员看</strong><small>全公司、部门、门店或员工</small></button>
       <button id="locationView" class="view-button" type="button"><strong>按房源所在位置看</strong><small>区域、商圈或小区</small></button>

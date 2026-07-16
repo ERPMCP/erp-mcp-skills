@@ -76,21 +76,25 @@ def load_proxy_module():
 def test_skill_contract():
     skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
     allow_line = next((line for line in skill.splitlines() if line.startswith("allowed-tools:")), "")
-    expected = "allowed-tools: AskUserQuestion, mcp__erp_dashboard_proxy__showErpDashboard"
+    expected = "allowed-tools: mcp__erp_dashboard_proxy__showErpDashboard"
     if allow_line != expected:
         raise SystemExit(f"first-turn tool allowlist changed: {allow_line}")
-    for forbidden in ("Read", "Write", "Bash", "mcp__erp__"):
+    for forbidden in ("AskUserQuestion", "Read", "Write", "Bash", "mcp__erp__"):
         if forbidden in allow_line:
             raise SystemExit(f"forbidden first-turn tool leaked into allowlist: {forbidden}")
     for required in (
-        "快速模式 2.4.4",
+        "快速模式 2.4.5",
+        "Never use `AskUserQuestion`",
+        "confirmationMode=auto_recommended",
+        "autoContinueSeconds=300",
+        "five minutes it automatically continues",
         "新房业务（新增数量可查；当前挂牌均价查不到）",
         "全部业务（新增数量可查；挂牌均价不能用同一种方式合并）",
         "按面积计算均价（推荐，先算每套房单价，再按面积大小综合；大面积房源影响更大，适合看市场均价）",
         "按套数简单平均（每套房都算一票；小房子和大房子影响一样，适合快速粗略核对）",
         "Forbidden visible option labels",
         "The two price-method option labels must be exactly the two labels above",
-        "After asking any question, stop the turn",
+        "After opening a confirmation Widget, stop the chat turn",
         "Never translate an unavailable request into a nearby available field",
         "按公司部门和人员看",
         "按房源所在位置看",
@@ -136,6 +140,21 @@ def test_proxy_logic():
         }
 
     proxy.call_upstream_tool = fake_monthly
+    pending = proxy.confirmation_pending(
+        {
+            "scenario": "house_new_listing_price",
+            "includeReferencePrice": True,
+            "businessType": "sell",
+            "priceMethod": "area_weighted",
+            "confirmationMode": "auto_recommended",
+            "autoContinueSeconds": 300,
+        }
+    )
+    if pending["phase"] != "CONFIRMATION_PENDING" or pending["autoContinueSeconds"] != 300:
+        raise SystemExit("confirmation Widget state was not created")
+    if calls or pending["technical"]["erpCallsBeforeConfirmation"] != 0:
+        raise SystemExit("confirmation state queried ERP before the Widget timer/button")
+
     summary = proxy.monthly_summary(
         {
             "month": "上月",
@@ -293,6 +312,10 @@ def test_proxy_protocol():
         raise SystemExit("Widget resource has the wrong MCP Apps MIME type")
     for required in (
         "callServerTool",
+        "CONFIRMATION_PENDING",
+        "confirmPanel",
+        "confirmCountdown",
+        "autoContinueSeconds",
         "queryErpDashboardSummary",
         "queryErpDashboardSecondaryMetric",
         "getErpMetricDetails",
@@ -372,7 +395,7 @@ def main():
         house = run([ROOT / "scripts" / "recommend_export.py", "查询上月新上房源数量和挂牌均价"])
         if "请导出房源表" in house.stdout or "需要补充：房源" in house.stdout or "房源明细导出" in house.stdout:
             raise SystemExit("house export recommendation leaked")
-    print("SELF_TEST_OK_V4")
+    print("SELF_TEST_OK_V5")
 
 
 if __name__ == "__main__":
