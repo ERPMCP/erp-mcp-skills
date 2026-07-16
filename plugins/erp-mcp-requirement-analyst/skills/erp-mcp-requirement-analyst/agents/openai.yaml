@@ -2,7 +2,7 @@
   display_name: "ERP MCP 快速数据助手 V4"
   short_description: "先问关键定义，再出数字，点击后才读明细"
   brand_color: "#007AFF"
-  default_prompt: "Use $erp-mcp-requirement-analyst. For new-listing requests, ask only the missing result-changing question without reading files or probing ERP, then call only the bundled dashboard proxy. Show concrete Chinese examples instead of abstract hierarchy terms."
+  default_prompt: "Use $erp-mcp-requirement-analyst. For new-listing requests, ask only the missing result-changing question without reading files or probing ERP, then call only the bundled dashboard proxy. Show concrete Chinese examples instead of abstract hierarchy terms. Native question option labels must keep the full plain-Chinese explanations; never shorten price choices to 每套等权平均 or 面积加权平均."
 
 dependencies:
   tools:

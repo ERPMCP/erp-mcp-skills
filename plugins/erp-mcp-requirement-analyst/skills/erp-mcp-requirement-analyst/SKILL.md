@@ -12,14 +12,18 @@ For requests containing `新上房源`, `新增房源`, `新上数量`, or `挂�
 
 Do not call any ERP or MCP tool before the required definitions are confirmed. Do not inspect live fields, run samples, probe one page, create a plan, write code, or narrate internal work.
 
-Use `AskUserQuestion` so the customer can click an option. Prefix the question with `快速模式 2.4` so the customer can verify that the new Skill is loaded.
+Use `AskUserQuestion` so the customer can click an option. Prefix the question with `快速模式 2.4.4` so the customer can verify that the new Skill is loaded.
+
+For native WorkBuddy question cards, the visible option `label` itself must contain the explanation. Do not rely on hidden descriptions or later chat text, because WorkBuddy may show only the label. Do not shorten, paraphrase, or rename these labels.
+
+Forbidden visible option labels: `每套等权平均`, `面积加权平均`, `每套等权`, `面积加权`, `加权均价`, `简单平均`, `算术平均`, `组织层级`, `地理层级`.
 
 ### Count Only
 
 If business type is missing, ask exactly one question and stop:
 
 ```text
-快速模式 2.4
+快速模式 2.4.4
 要统计哪类房源？
 A. 买卖房源（推荐，二手房出售）
 B. 租赁房源（出租房源）
@@ -32,7 +36,7 @@ D. 全部业务（买卖、租赁、新房都算；如果后面要算均价，�
 If business type or price method is missing, ask both in one response and stop:
 
 ```text
-快速模式 2.4
+快速模式 2.4.4
 请确认两项，确认后马上先给你新增数量和实时看板：
 
 1. 房源类型
@@ -42,9 +46,11 @@ C. 新房业务（新增数量可查；当前挂牌均价查不到）
 D. 全部业务（新增数量可查；挂牌均价不能用同一种方式合并）
 
 2. 挂牌均价怎么算
-A. 按面积计算均价（推荐）：先算每套房单价，再按面积大小综合；大面积房源影响更大，适合看市场均价。
-B. 按套数简单平均：每套房都算一票；小房子和大房子影响一样，适合快速粗略核对。
+A. 按面积计算均价（推荐，先算每套房单价，再按面积大小综合；大面积房源影响更大，适合看市场均价）
+B. 按套数简单平均（每套房都算一票；小房子和大房子影响一样，适合快速粗略核对）
 ```
+
+The two price-method option labels must be exactly the two labels above. If a native UI seems too narrow, keep the exact labels anyway; do not replace them with `每套等权平均` or `面积加权平均`.
 
 If the customer selects `新房业务` or `全部业务`, do not silently replace it with buy or rent. Explain that the requested new-listing count can continue, but the current listing-average-price interface cannot produce the same requested combined result. Ask whether to continue with count only or change the business type, then stop without querying.
 
@@ -66,7 +72,7 @@ D. 不需要额外筛选
 
 Keep the native `其他补充` entry so the customer can type a custom filter. Before accepting a custom filter, state whether it is directly available, available with a limitation, or unavailable. Never claim that a custom filter works until the proxy supports it.
 
-Every native popup option must be self-explanatory. Do not show short labels such as `加权均价`, `简单平均`, `组织层级`, or `地理层级` without a same-line plain Chinese explanation. Assume the customer does not know ERP terms. Prefer longer option labels over making the customer guess.
+Every native popup option must be self-explanatory. Do not show short labels such as `每套等权平均`, `面积加权平均`, `加权均价`, `简单平均`, `组织层级`, or `地理层级` without a same-line plain Chinese explanation. Assume the customer does not know ERP terms. Prefer longer option labels over making the customer guess.
 
 When the ERP result or a dedicated option tool can enumerate filter values, the Widget must use a dropdown. Do not replace an available department, store, person, region, business-district, or community list with a plain search box to save implementation work. This remains mandatory even when there are dozens or hundreds of values, such as 72 branches. For a large list, put search inside the dropdown; search may help narrow the list but may not replace the list. Use dependent dropdowns for parent-child values such as region -> business district -> community. Use free text only when the MCP truly cannot enumerate a complete option set, and explain that limitation beside the field.
 
@@ -111,7 +117,7 @@ Do not call direct `erp` tools, including `queryRptData`, `listHouseByCondition`
 If `showErpDashboard` is unavailable, reply only:
 
 ```text
-实时看板组件没有加载。请把插件更新到 2.4.3 后执行 /reload-plugins，再新建任务重试。
+实时看板组件没有加载。请把插件更新到 2.4.4 后执行 /reload-plugins，再新建任务重试。
 ```
 
 Do not fall back to direct ERP calls or a `file:///` report.

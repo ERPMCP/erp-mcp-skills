@@ -1,4 +1,8 @@
 # Changelog
+## 2.4.4 - 2026-07-16
+
+- Require exact native WorkBuddy option labels for listing-average-price choices, with the explanation inside the visible label itself.
+- Explicitly forbid compressed labels such as `每套等权平均` and `面积加权平均`, because WorkBuddy was shortening the prompt even after the Skill contained longer explanations.
 ## 2.4.3 - 2026-07-16
 
 - Expand native popup labels for price methods and filter choices into full plain-Chinese explanations, so WorkBuddy cannot show only terse terms such as `面积加权` or `套数算术平均`.
